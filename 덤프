@@ -1,0 +1,30 @@
+// dump_ios.js
+'use strict';
+
+rpc.exports = {
+    dumpModules: function() {
+        var modules = Process.enumerateModules();
+        modules.forEach(function(m) {
+            try {
+                var buf = Memory.readByteArray(m.base, m.size);
+                send({name: m.name, base: m.base.toString(), size: m.size}, buf);
+            } catch(e) {
+                console.log("Failed to dump module:", m.name, e);
+            }
+        });
+        return "module dump complete";
+    },
+
+    dumpMemory: function() {
+        var ranges = Process.enumerateRangesSync({protection:'r--', coalesce:true});
+        ranges.forEach(function(r) {
+            try {
+                var buf = Memory.readByteArray(r.base, r.size);
+                send({base: r.base.toString(), size: r.size}, buf);
+            } catch(e) {
+                // 읽기 실패한 영역은 무시
+            }
+        });
+        return "memory dump complete";
+    }
+};
