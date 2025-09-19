@@ -1,0 +1,193 @@
+// block_terminate_extended.js
+// Extended Frida script to block many termination paths: exit/_exit/abort/raise/kill/tgkill/syscall/abort_message/__assert_*/pthread_exit/objc_exception_throw
+// Usage:
+// frida -U -f com.example.app -l block_terminate_extended.js --no-pause
+// or attach to running: frida -U -n AppName -l block_terminate_extended.js
+
+'use strict';
+
+function L() {
+    try { console.log.apply(console, arguments); } catch(e) {}
+}
+
+function safeReplace(name, retType, argTypes, impl) {
+    try {
+        var ptr = Module.findExportByName(null, name);
+        if (ptr) {
+            L("[frida] replacing", name, "at", ptr);
+            Interceptor.replace(ptr, new NativeCallback(impl, retType, argTypes));
+        } else {
+            L("[frida] not found:", name);
+        }
+    } catch (e) {
+        L("[frida] error replacing", name, e);
+    }
+}
+
+// replace common libc terminate functions
+function installBasic() {
+    safeReplace('exit', 'void', ['int'], function(status) {
+        L("[hook] exit(" + status + ") blocked");
+        return;
+    });
+    safeReplace('_exit', 'void', ['int'], function(status) {
+        L("[hook] _exit(" + status + ") blocked");
+        return;
+    });
+    safeReplace('abort', 'void', [], function() {
+        L("[hook] abort() blocked");
+        return;
+    });
+    safeReplace('raise', 'int', ['int'], function(sig) {
+        L("[hook] raise(" + sig + ") intercepted => returning 0");
+        return 0;
+    });
+    // kill variants
+    safeReplace('kill', 'int', ['int', 'int'], function(pid, sig) {
+        L("[hook] kill(" + pid + "," + sig + ") blocked => returning 0");
+        return 0;
+    });
+    safeReplace('killpg', 'int', ['int', 'int'], function(pgrp, sig) {
+        L("[hook] killpg(" + pgrp + "," + sig + ") blocked => returning 0");
+        return 0;
+    });
+    safeReplace('tgkill', 'int', ['int', 'int', 'int'], function(tgid, tid, sig) {
+        L("[hook] tgkill(" + tgid + "," + tid + "," + sig + ") blocked => returning 0");
+        return 0;
+    });
+    safeReplace('tkill', 'int', ['int', 'int'], function(tid, sig) {
+        L("[hook] tkill(" + tid + "," + sig + ") blocked => returning 0");
+        return 0;
+    });
+    safeReplace('pthread_exit', 'void', ['pointer'], function(ret) {
+        L("[hook] pthread_exit blocked");
+        return;
+    });
+}
+
+// intercept low-level syscall() to catch exit_group or other syscalls
+function installSyscallHook() {
+    var syscallPtr = Module.findExportByName(null, 'syscall');
+    if (!syscallPtr) { L("[frida] syscall not found"); return; }
+    L("[frida] hooking syscall at", syscallPtr);
+
+    Interceptor.replace(syscallPtr, new NativeCallback(function() {
+        try {
+            // arguments are platform-dependent; first arg is syscall number
+            var args = [];
+            for (var i=0;i<6;i++) { try { args.push(arguments[i]); } catch(e){ args.push(null);} }
+            var num = args[0] | 0;
+            // On iOS/linux, __NR_exit_group is usually 231 on ARM64? (varies), but we check common numbers conservatively
+            // Safer: block known terminating syscalls by name via heuristics: numbers that match exit/kill/tkill/tgkill
+            // We'll log and block known suspicious codes (best-effort)
+            L("[hook][syscall] num=" + num + " args=" + args.slice(1,4));
+            // If it's suspicious, return a benign value (0 or -1).
+            // NOTE: cannot reliably map syscall numbers across all arch/OS versions; this is a best-effort guard.
+            return 0;
+        } catch(e) {
+            L("[hook][syscall] error", e);
+            return 0;
+        }
+    }, 'long', ['long','long','long','long','long','long']));
+}
+
+// hook libc/internal assert/abort message functions
+function installAbortAssertHooks() {
+    // abort_message (glibc/bsd/apple variants)
+    try {
+        var ptr = Module.findExportByName(null, 'abort_message') || Module.findExportByName(null, '__abort_message');
+        if (ptr) {
+            L("[frida] hooking abort_message at", ptr);
+            Interceptor.replace(ptr, new NativeCallback(function(fmtPtr) {
+                try {
+                    var msg = ptr ? Memory.readUtf8String(fmtPtr) : "<abort_message>";
+                } catch(e) { msg = "<cant-read-msg>"; }
+                L("[hook] abort_message called => blocked. msg:", msg);
+                return;
+            }, 'void', ['pointer']));
+        } else {
+            L("[frida] abort_message not found");
+        }
+    } catch(e){ L(e); }
+
+    // __assert_rtn / __assert_fail
+    try {
+        safeReplace('__assert_rtn', 'void', ['pointer','pointer','int','pointer'], function(func, file, line, cond) {
+            L("[hook] __assert_rtn blocked. file=", Memory.readUtf8String(file), "line=", line);
+            return;
+        });
+    } catch(e){ L(e); }
+    try {
+        safeReplace('__assert_fail', 'void', ['pointer','pointer','int','pointer'], function(condPtr, filePtr, line, funcPtr) {
+            var cond = "<unknown>"; var file = "<unknown>";
+            try { cond = Memory.readUtf8String(condPtr); } catch(e){}
+            try { file = Memory.readUtf8String(filePtr); } catch(e){}
+            L("[hook] __assert_fail blocked cond=", cond, "file=", file, "line=", line);
+            return;
+        });
+    } catch(e){ L(e); }
+}
+
+// try to intercept uncaught Objective-C exceptions (often leads to termination)
+function installObjCExceptionHook() {
+    if (ObjC.available) {
+        try {
+            var objcThrow = Module.findExportByName(null, 'objc_exception_throw');
+            if (objcThrow) {
+                L("[frida] hooking objc_exception_throw at", objcThrow);
+                Interceptor.replace(objcThrow, new NativeCallback(function(exc) {
+                    try {
+                        // print exception description if possible
+                        var desc = "<no-desc>";
+                        try {
+                            var excObj = new ObjC.Object(exc);
+                            desc = excObj.toString();
+                        } catch(e){}
+                        L("[hook][objc] objc_exception_throw intercepted:", desc);
+                    } catch(e) { L(e); }
+                    // swallow the exception to try to avoid termination
+                    return;
+                }, 'void', ['pointer']));
+            } else {
+                L("[frida] objc_exception_throw not found");
+            }
+        } catch (e) {
+            L("[frida] objc exception hook error", e);
+        }
+    } else {
+        L("[frida] ObjC runtime not available");
+    }
+}
+
+// best-effort: hook Swift abort helpers (symbol names vary); at least attempt abort paths already covered
+function attemptSwiftHooks() {
+    // Try hooking some common swift abort helper symbols if present
+    var candidates = ['swift_abort', 'swift::fatalError', '_swift_fatalError', '_swift_abort'];
+    candidates.forEach(function(name){
+        try {
+            var p = Module.findExportByName(null, name);
+            if (p) {
+                L("[frida] hooking swift symbol", name, "at", p);
+                Interceptor.replace(p, new NativeCallback(function() {
+                    L("[hook][swift] " + name + " blocked");
+                    return;
+                }, 'void', []));
+            } else {
+                L("[frida] swift symbol not found:", name);
+            }
+        } catch(e){ L(e); }
+    });
+}
+
+function main() {
+    L("[frida] starting extended termination hooks");
+    installBasic();
+    installAbortAssertHooks();
+    installObjCExceptionHook();
+    attemptSwiftHooks();
+    try { installSyscallHook(); } catch(e){ L("[frida] syscall hook fail", e); }
+    L("[frida] hooks installed (note: cannot block SIGKILL/watchdog/codesign/kernel kills)");
+}
+
+// small delay to allow modules to load (spawn -f recommended)
+setTimeout(main, 150);
