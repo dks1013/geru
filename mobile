@@ -1,83 +1,145 @@
-좋아요 — 후킹한 Java 메서드가 호출될 때 첫 번째 인자를 console.log로 출력하는 안전한 Frida 스크립트 바로 드립니다. Android/Java 환경 기준이며, Java 객체든 원시 JS 값이든 toString()으로 안전하게 읽어 출력합니다.
+좋아요 👍 —
+이 오류 Cannot read property 'apply' of null 은 Frida에서 자바 메서드를 후킹할 때 원본 구현(implementation)을 잘못 저장했거나, native 메서드라서 JS 함수 형태의 구현이 없을 때 생기는 전형적인 문제입니다.
 
-사용 예제는 다음과 같습니다.
+즉, savedOrig (또는 orig) 변수가 null 혹은 undefined 상태이기 때문에 .apply()를 쓸 수 없다는 뜻이에요.
 
-// print_first_arg.js
+
+---
+
+🔍 원인 정리
+
+1. 해당 메서드가 Java 단이 아니라 native(C/C++)로 구현됨 → overload[i].implementation 자체가 null
+
+
+2. implementation을 저장하기 전에 덮어씀 → savedOrig가 자기 자신(이미 교체된 함수)을 가리킴 → null 또는 undefined
+
+
+3. Frida가 그 메서드를 JS로 감싸지 못한 경우 → (예: abstract, interface, bridge method 등)
+
+
+
+
+---
+
+✅ 해결 방법 ① (원본 호출 없이 단순 로그만 남기기)
+
+테스트나 인자 확인 목적이라면 원본 호출을 생략하는 게 가장 간단하고 안전합니다.
+이렇게 하면 apply 호출 자체가 필요 없어요.
+
+// simple_log.js
 Java.perform(function () {
+    var className = "Test.test.test";
+    var methodName = "toParamJSONString";
+
     try {
-        var className = "Test.test.test"; // 실제 클래스명으로 바꿔주세요
-        var methodName = "toParamJSONString"; // 후킹할 메서드명
-
         var cls = Java.use(className);
-        if (!cls) {
-            console.log("클래스를 찾을 수 없습니다: " + className);
-            return;
-        }
-
-        if (typeof cls[methodName] === "undefined") {
-            console.log("메서드가 없습니다: " + methodName);
-            return;
-        }
-
         var overloads = cls[methodName].overloads;
         for (var i = 0; i < overloads.length; i++) {
-            (function(idx) {
-                // 원본 저장 (반드시 덮어쓰기 전에)
-                var savedOrig = overloads[idx].implementation;
-
+            (function (idx) {
                 overloads[idx].implementation = function () {
+                    var first = arguments.length > 0 ? arguments[0] : "(no args)";
                     try {
-                        // 첫 번째 인자 확인
-                        if (arguments.length > 0) {
-                            var first = arguments[0];
-                            var s;
-                            try {
-                                // Java 객체라면 toString() 사용 (안전하게)
-                                s = first === null || first === undefined ? String(first) : first.toString();
-                            } catch (e) {
-                                s = String(first);
-                            }
-                            console.log("[" + className + "." + methodName + " overload " + idx + "] 첫번째 인자:", s);
-                        } else {
-                            console.log("[" + className + "." + methodName + " overload " + idx + "] 인자가 없습니다.");
-                        }
-                    } catch (logErr) {
-                        console.log("인자 출력 중 오류: " + logErr);
+                        console.log(
+                            `[${className}.${methodName} overload ${idx}] 첫번째 인자:`,
+                            first ? first.toString() : "null"
+                        );
+                    } catch (e) {
+                        console.log("출력 실패:", e);
                     }
 
-                    // 원본 호출 (원래 인자 그대로 전달)
-                    try {
-                        return savedOrig.apply(this, arguments);
-                    } catch (callErr) {
-                        console.log("원본 호출 실패: " + callErr);
-                        // 필요하면 예외 재던지기
-                        throw callErr;
-                    }
+                    // 원본 호출 대신 그냥 null 리턴 (원본 유지 필요 없을 때)
+                    return null;
                 };
-
-                console.log("후킹 완료: " + methodName + " overload[" + idx + "]");
+                console.log(`후킹 완료: ${methodName} overload[${idx}]`);
             })(i);
         }
     } catch (err) {
-        console.log("스크립트 오류: " + err);
+        console.log("오류:", err);
     }
 });
 
-빠른 설명
-
-savedOrig를 먼저 저장하고 implementation을 덮어씁니다. (무한재귀 방지)
-
-arguments[0] 을 toString()으로 읽어 출력합니다 — Java 객체도 안전하게 처리됩니다.
-
-마지막에 savedOrig.apply(this, arguments)로 원래 동작을 유지합니다.
+이 버전은 단순히 호출 로그만 찍고 원본을 실행하지 않습니다.
+(native나 추상 메서드도 안전하게 후킹됨)
 
 
-원하시면:
+---
 
-첫 번째 인자가 특정 문자열일 때만 출력/변경하거나,
+✅ 해결 방법 ② (원본이 존재할 때만 안전하게 호출)
 
-출력 포맷(JSON)으로 바꾸거나,
+만약 원본을 반드시 호출해야 한다면, 다음처럼 “원본이 존재하는지 검사”를 추가하세요.
 
-특정 오버로드(예: overload('java.lang.String'))만 후킹하도록 축소한 스크립트로 바꿔 드릴게요 — 어떤 동작을 추가할지 알려주세요.
+Java.perform(function () {
+    var className = "Test.test.test";
+    var methodName = "toParamJSONString";
+    var cls = Java.use(className);
+    var overloads = cls[methodName].overloads;
 
+    for (var i = 0; i < overloads.length; i++) {
+        (function (idx) {
+            var hasOrig = overloads[idx].hasOwnProperty("implementation")
+                && typeof overloads[idx].implementation === "function";
+            var savedOrig = hasOrig ? overloads[idx].implementation : null;
+
+            overloads[idx].implementation = function () {
+                var first = arguments.length > 0 ? arguments[0] : "(no args)";
+                console.log(`[${className}.${methodName} overload ${idx}] 첫번째 인자:`, first);
+
+                if (savedOrig) {
+                    try {
+                        return savedOrig.apply(this, arguments);
+                    } catch (e) {
+                        console.log("원본 호출 실패:", e);
+                    }
+                } else {
+                    console.log("원본 구현 없음 (native 또는 abstract)");
+                }
+                return null;
+            };
+            console.log(`후킹 완료: ${methodName} overload[${idx}]`);
+        })(i);
+    }
+});
+
+이 스크립트는 다음처럼 동작합니다:
+
+원본이 존재하면 .apply() 호출
+
+원본이 없으면 단순히 로그 출력 후 null 리턴
+
+
+
+---
+
+✅ 추가 확인법
+
+문제 되는 메서드가 실제로 native인지 확인하려면 Frida 콘솔에서 아래처럼 실행해보세요:
+
+frida -U -f com.example.app --no-pause
+
+그리고 내부 REPL에서:
+
+Java.perform(function(){
+  var c = Java.use("Test.test.test");
+  c.toParamJSONString.overloads.forEach(function(o){ console.log(o); });
+});
+
+→ 출력된 시그니처를 보면 native가 붙어있으면 원본 호출은 불가능합니다.
+(예: public native java.lang.String toParamJSONString(java.lang.String arg))
+
+
+---
+
+🔧 결론
+
+Cannot read property 'apply' of null → implementation이 없거나 null임
+
+단순 로그만 찍을 경우 원본 호출 제거하면 100% 안전
+
+원본 호출이 꼭 필요하면 null 체크 추가
+
+
+
+---
+
+원하신다면 해당 클래스(Test.test.test)의 toParamJSONString 시그니처(예: String toParamJSONString(String)인지 등)를 알려주시면, 정확한 오버로드 하나만 안전하게 후킹해서 원본 호출 유지하는 코드로 정리해드릴게요.
 
