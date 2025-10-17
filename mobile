@@ -1,0 +1,83 @@
+좋아요 — 후킹한 Java 메서드가 호출될 때 첫 번째 인자를 console.log로 출력하는 안전한 Frida 스크립트 바로 드립니다. Android/Java 환경 기준이며, Java 객체든 원시 JS 값이든 toString()으로 안전하게 읽어 출력합니다.
+
+사용 예제는 다음과 같습니다.
+
+// print_first_arg.js
+Java.perform(function () {
+    try {
+        var className = "Test.test.test"; // 실제 클래스명으로 바꿔주세요
+        var methodName = "toParamJSONString"; // 후킹할 메서드명
+
+        var cls = Java.use(className);
+        if (!cls) {
+            console.log("클래스를 찾을 수 없습니다: " + className);
+            return;
+        }
+
+        if (typeof cls[methodName] === "undefined") {
+            console.log("메서드가 없습니다: " + methodName);
+            return;
+        }
+
+        var overloads = cls[methodName].overloads;
+        for (var i = 0; i < overloads.length; i++) {
+            (function(idx) {
+                // 원본 저장 (반드시 덮어쓰기 전에)
+                var savedOrig = overloads[idx].implementation;
+
+                overloads[idx].implementation = function () {
+                    try {
+                        // 첫 번째 인자 확인
+                        if (arguments.length > 0) {
+                            var first = arguments[0];
+                            var s;
+                            try {
+                                // Java 객체라면 toString() 사용 (안전하게)
+                                s = first === null || first === undefined ? String(first) : first.toString();
+                            } catch (e) {
+                                s = String(first);
+                            }
+                            console.log("[" + className + "." + methodName + " overload " + idx + "] 첫번째 인자:", s);
+                        } else {
+                            console.log("[" + className + "." + methodName + " overload " + idx + "] 인자가 없습니다.");
+                        }
+                    } catch (logErr) {
+                        console.log("인자 출력 중 오류: " + logErr);
+                    }
+
+                    // 원본 호출 (원래 인자 그대로 전달)
+                    try {
+                        return savedOrig.apply(this, arguments);
+                    } catch (callErr) {
+                        console.log("원본 호출 실패: " + callErr);
+                        // 필요하면 예외 재던지기
+                        throw callErr;
+                    }
+                };
+
+                console.log("후킹 완료: " + methodName + " overload[" + idx + "]");
+            })(i);
+        }
+    } catch (err) {
+        console.log("스크립트 오류: " + err);
+    }
+});
+
+빠른 설명
+
+savedOrig를 먼저 저장하고 implementation을 덮어씁니다. (무한재귀 방지)
+
+arguments[0] 을 toString()으로 읽어 출력합니다 — Java 객체도 안전하게 처리됩니다.
+
+마지막에 savedOrig.apply(this, arguments)로 원래 동작을 유지합니다.
+
+
+원하시면:
+
+첫 번째 인자가 특정 문자열일 때만 출력/변경하거나,
+
+출력 포맷(JSON)으로 바꾸거나,
+
+특정 오버로드(예: overload('java.lang.String'))만 후킹하도록 축소한 스크립트로 바꿔 드릴게요 — 어떤 동작을 추가할지 알려주세요.
+
+
