@@ -1,0 +1,19 @@
+Interceptor.attach(ptr("0x14000741F"), {
+    onEnter(args) {
+        const r9 = this.context.r9;
+        console.log("R9 =>", r9);
+
+        try {
+            // 보호 변경: r9 포함된 페이지 전체를 읽기 가능하게 설정 (0x1000 = 1 page)
+            const pageStart = r9.and(ptr(-0x1000));   // 페이지 align
+            Memory.protect(pageStart, 0x1000, "r--");
+
+            // 문자열 읽기 시도
+            const str = Memory.readUtf8String(r9);
+            console.log("R9 string =>", str);
+
+        } catch (e) {
+            console.log("읽기 실패:", e);
+        }
+    }
+});
