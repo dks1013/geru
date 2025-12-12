@@ -1,0 +1,12 @@
+const m = Process.findModuleByName("IMGSF50Filter_64.dll");
+const start = m.base;
+const end = m.base.add(m.size);
+
+Memory.scan(start, end.sub(start), "83 BA 30 01 00 00 00", {
+    onMatch(addr) {
+        console.log("FOUND:", addr);
+    },
+    onComplete() {
+        console.log("done");
+    }
+});
