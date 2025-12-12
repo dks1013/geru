@@ -1,0 +1,7 @@
+const realStretch = Module.findExportByName("gdi32.dll", "StretchBlt");
+
+Interceptor.replace(ptr("0x6B338980"), new NativeCallback(function(
+    hdcDest, x, y, w, h, hdcSrc, sx, sy, sw, sh, rop
+) {
+    return realStretch(hdcDest, x, y, w, h, hdcSrc, sx, sy, sw, sh, rop);
+}, 'int', ['pointer','int','int','int','int','pointer','int','int','int','int','int']));
