@@ -1,0 +1,6 @@
+const mod = Module.findBaseAddress("IMGSF50Filter.dll");
+console.log("Base:", mod);
+
+Module.enumerateExports("IMGSF50Filter.dll").forEach(e => {
+    console.log(e.name, e.address);
+});
