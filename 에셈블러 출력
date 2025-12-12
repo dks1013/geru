@@ -1,0 +1,2 @@
+const here = Instruction.parse(ptr("0x613EFF"));
+console.log(here);
