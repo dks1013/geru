@@ -1,0 +1,22 @@
+// stretch_trace.js
+const fn = Module.getExportByName("gdi32.dll", "StretchBlt");
+console.log("StretchBlt @", fn);
+
+Interceptor.attach(fn, {
+  onEnter(args) {
+    console.log("\n=== StretchBlt called ===");
+    console.log("args:", args[0], args[1], args[2], args[3], args[4], args[5]);
+    // 호출자 주소와 모듈
+    const ret = this.returnAddress;
+    console.log("returnAddress:", ret);
+    try {
+      console.log("caller module:", Process.findModuleByAddress(ret) || "unknown");
+    } catch(e) { console.log(e); }
+
+    // 정확한 백트레이스
+    const bt = Thread.backtrace(this.context, Backtracer.ACCURATE)
+      .map(x => DebugSymbol.fromAddress(x))
+      .join("\n");
+    console.log(bt);
+  }
+});
