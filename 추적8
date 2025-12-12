@@ -1,0 +1,21 @@
+// monitor_gpa_loadlib.js
+Interceptor.attach(Module.getExportByName("kernel32.dll", "GetProcAddress"), {
+  onEnter(args) {
+    const name = Memory.readCString(args[1]);
+    if (name.indexOf("StretchBlt") !== -1 || name.indexOf("SetWindowsHookEx") !== -1) {
+      console.log("[GetProcAddress] name:", name, "caller:", this.returnAddress);
+    }
+  }
+});
+Interceptor.attach(Module.getExportByName("kernel32.dll", "LoadLibraryA"), {
+  onEnter(args) {
+    const nm = Memory.readCString(args[0]);
+    console.log("[LoadLibraryA]", nm);
+  }
+});
+Interceptor.attach(Module.getExportByName("kernel32.dll", "LoadLibraryW"), {
+  onEnter(args) {
+    const nm = Memory.readUtf16String(args[0]);
+    console.log("[LoadLibraryW]", nm);
+  }
+});
