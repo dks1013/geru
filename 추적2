@@ -1,0 +1,10 @@
+["SetWindowHookExA", "SetWindowHookExW"].forEach(fn => {
+    const addr = Module.getExportByName("user32.dll", fn);
+    console.log(fn, addr);
+    Interceptor.attach(addr, {
+        onEnter(args) {
+            console.log(`[CALL] ${fn}`);
+            console.log("Hook type:", args[0].toInt32());
+        }
+    });
+});
