@@ -1,0 +1,6 @@
+Interceptor.attach(ptr("0x613EFF"), {   // 네가 찾은 실제 실행 주소 (예시)
+    onEnter(args) {
+        console.log("EDX =", this.context.edx);
+        console.log("Value @ [edx+0x130] =", Memory.readU32(this.context.edx.add(0x130)));
+    }
+});
