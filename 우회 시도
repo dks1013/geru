@@ -1,0 +1,5 @@
+Interceptor.attach(ptr("0x6B338980"), {
+    onLeave(retval) {
+        retval.replace(1);
+    }
+});
