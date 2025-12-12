@@ -1,0 +1,16 @@
+// trace_imgsf_entry.js
+const entry = ptr("0x6B338980");
+
+Interceptor.attach(entry, {
+  onEnter(args) {
+    console.log("\n=== IMGSF50Filter StretchBlt hook hit ===");
+    console.log("args:", args);
+    console.log("return to:", this.returnAddress);
+
+    // 백트레이스
+    const bt = Thread.backtrace(this.context, Backtracer.ACCURATE)
+      .map(a => DebugSymbol.fromAddress(a))
+      .join("\n");
+    console.log(bt);
+  }
+});
