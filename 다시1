@@ -1,0 +1,3 @@
+const realStretch = Module.findExportByName("gdi32.dll", "StretchBlt");
+console.log("realStretch ptr:", realStretch);
+console.log("type:", typeof realStretch);
