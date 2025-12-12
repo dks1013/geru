@@ -1,0 +1,6 @@
+const addr = ptr("0x8A2CAB");
+const mod = Process.findModuleByAddress(addr);
+
+console.log("=== Module Check ===");
+console.log("Address :", addr);
+console.log("Module :\n" + JSON.stringify(mod, null, 2));
