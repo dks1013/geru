@@ -1,0 +1,7 @@
+let pc = ptr("0x613EFF");
+
+for (let i = 0; i < 30; i++) {
+  const ins = Instruction.parse(pc);
+  console.log(pc, ins.mnemonic, ins.opStr);
+  pc = pc.add(ins.size);
+}
