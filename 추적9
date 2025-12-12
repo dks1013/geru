@@ -1,0 +1,9 @@
+// module_check.js
+// 특정 주소(여기서는 0x6B338980)가 어느 DLL에 속하는지 출력하는 코드
+
+const target = ptr("0x6B338980");
+
+const mod = Process.findModuleByAddress(target);
+
+console.log("Target Address:", target);
+console.log("Module Info:", mod);
