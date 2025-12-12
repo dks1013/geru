@@ -1,0 +1,5 @@
+Interceptor.attach(Module.getExportByName("gdi32.dll", "BitBlt"), {
+    onEnter(args) {
+        console.log("BitBlt called", this.returnAddress);
+    }
+});
