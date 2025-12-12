@@ -1,0 +1,5 @@
+Interceptor.attach(Module.getExportByName("user32.dll", "SetWindowHookExA"), {
+    onEnter(args) {
+        console.log("[HOOK] type:", args[0].toInt32());
+    }
+});
