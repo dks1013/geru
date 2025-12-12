@@ -1,0 +1,6 @@
+// inspect_stretchblt.js
+const addr = ptr("0x764540f0");
+console.log("StretchBlt export:", addr);
+console.log("first 16 bytes:", Memory.readByteArray(addr, 16));
+const ins = Instruction.parse(addr);
+console.log("first instruction:", ins.toString());
