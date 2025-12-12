@@ -1,0 +1,8 @@
+Memory.patchCode(ptr("0x6B338980"), 8, code => {
+    const cw = new X86Writer(code, { pc: ptr("0x6B338980") });
+    cw.putNop();
+    cw.putNop();
+    cw.putNop();
+    cw.putNop();
+    cw.flush();
+});
