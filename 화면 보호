@@ -1,0 +1,7 @@
+Interceptor.attach(Module.getExportByName("user32.dll", "SetWindowDisplayAffinity"), {
+    onEnter(args) {
+        console.log("SetWindowDisplayAffinity called!");
+        console.log("HWND:", args[0]);
+        console.log("Affinity:", args[1].toInt32());
+    }
+});
