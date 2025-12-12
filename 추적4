@@ -1,0 +1,8 @@
+Interceptor.attach(Module.getExportByName("user32.dll", "SetWindowsHookExA"), {
+    onEnter(args) {
+        console.log("[SetWindowsHookExA] idHook:", args[0].toInt32());
+        console.log("lpfn:", args[1]);
+        console.log("hMod:", args[2]);
+        console.log("dwThreadId:", args[3]);
+    }
+});
