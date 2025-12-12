@@ -1,0 +1,11 @@
+Process.enumerateModules().forEach(m => {
+    if (m.name.includes("TENXWGuatd32")) {
+        console.log(m.name, m.base);
+    }
+});
+
+Interceptor.attach(Module.getExportByName("Gdi32.dll", "StretchBlt"), {
+    onEnter(args) {
+        console.log("Called from:", this.returnAddress);
+    }
+});
