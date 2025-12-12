@@ -1,0 +1,3 @@
+const ptrA = Module.getExportByName("user32.dll", "SetWindowHookExA");
+const ins = Instruction.parse(ptrA);
+console.log(ins);
