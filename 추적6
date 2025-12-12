@@ -1,0 +1,15 @@
+// trace_stretchblt.js
+const addr = ptr("0x764540f0");
+console.log("attach StretchBlt @", addr);
+
+Interceptor.attach(addr, {
+  onEnter(args) {
+    console.log("\n=== StretchBlt called ===");
+    console.log("args:", args[0], args[1], args[2], args[3], args[4], args[5]);
+    const ret = this.returnAddress;
+    console.log("returnAddress:", ret);
+    console.log("caller module:", Process.findModuleByAddress(ret));
+    const bt = Thread.backtrace(this.context, Backtracer.ACCURATE).map(x => DebugSymbol.fromAddress(x)).join("\n");
+    console.log(bt);
+  }
+});
