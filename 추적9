@@ -1,9 +1,14 @@
 // module_check.js
-// 특정 주소(여기서는 0x6B338980)가 어느 DLL에 속하는지 출력하는 코드
+// 특정 주소가 어느 모듈(DLL)에 속하는지 출력
 
 const target = ptr("0x6B338980");
-
 const mod = Process.findModuleByAddress(target);
 
 console.log("Target Address:", target);
-console.log("Module Info:", mod);
+
+// 객체 내용을 보기 좋게 출력
+if (mod) {
+    console.log("Module Info:\n" + JSON.stringify(mod, null, 2));
+} else {
+    console.log("모듈을 찾을 수 없습니다.");
+}
