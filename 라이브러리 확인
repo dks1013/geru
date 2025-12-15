@@ -1,0 +1,6 @@
+Process.enumerateModules()
+    .forEach(m => {
+        if (m.name.endsWith(".so")) {
+            console.log(m.name);
+        }
+    });
