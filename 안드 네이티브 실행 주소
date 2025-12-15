@@ -1,13 +1,39 @@
-const m = Process.findModuleByName("libzwfeyyadt.so");
+const moduleName = "libzwfeyyadt.so";
 
-if (m) {
-    Module.enumerateExports(m.name).forEach(e => {
-        if (e.type === "function") {
-            Interceptor.attach(e.address, {
-                onEnter() {
-                    console.log("[CALL]", e.name, e.address);
-                }
-            });
-        }
+function waitForModule() {
+    const m = Process.findModuleByName(moduleName);
+    if (!m) {
+        setTimeout(waitForModule, 100);
+        return;
+    }
+
+    console.log("[+] module loaded:", m.base, m.size);
+
+    const start = m.base;
+    const end = m.base.add(m.size);
+
+    Process.enumerateThreads().forEach(t => {
+        console.log("[*] stalking tid", t.id);
+
+        Stalker.follow(t.id, {
+            events: { exec: true },
+            onReceive(events) {
+                const parsed = Stalker.parse(events);
+                parsed.forEach(e => {
+                    if (e.address.compare(start) >= 0 &&
+                        e.address.compare(end) < 0) {
+
+                        console.log(
+                            "[EXEC]",
+                            e.address,
+                            "offset",
+                            e.address.sub(start)
+                        );
+                    }
+                });
+            }
+        });
     });
 }
+
+waitForModule();
