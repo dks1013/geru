@@ -1,0 +1,20 @@
+const prctl = Module.findExportByName(null, "prctl");
+
+Interceptor.attach(prctl, {
+    onEnter(args) {
+        const opt = args[0].toInt32();
+
+        if (opt === 1398164801) {
+            const caller = this.returnAddress;
+            const m = Process.findModuleByAddress(caller);
+
+            console.log("\n[!] second filter triggered");
+            if (m) {
+                console.log("→ module:", m.name);
+                console.log("→ offset:", caller.sub(m.base));
+            } else {
+                console.log("→ module: unknown");
+            }
+        }
+    }
+});
