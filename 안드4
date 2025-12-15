@@ -1,0 +1,19 @@
+const prctl = Module.findExportByName(null, "prctl");
+
+Interceptor.attach(prctl, {
+    onEnter(args) {
+        const opt = args[0].toInt32();
+
+        // second filter 핵심 옵션만
+        if (opt === 1398164801) {
+            console.log("\n[!] PR_SET_SECCOMP_FILTER about to be applied");
+
+            // 호출 스택
+            const bt = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                .map(DebugSymbol.fromAddress)
+                .join("\n");
+
+            console.log(bt);
+        }
+    }
+});
