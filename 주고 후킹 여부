@@ -1,0 +1,13 @@
+const soName = "libzwfeyyadt.so";
+
+// so 로딩 보장
+Module.ensureInitialized(soName);
+
+// IDA 기준 주소 입력
+const target = ptr("0xADDRESS");
+
+Interceptor.attach(target, {
+    onEnter() {
+        console.log("[+] HIT:", soName, target);
+    }
+});
