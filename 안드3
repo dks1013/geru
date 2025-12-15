@@ -1,0 +1,14 @@
+const prctl = Module.findExportByName(null, "prctl");
+
+Interceptor.attach(prctl, {
+    onEnter(args) {
+        console.log(
+            "[prctl]",
+            "option =", args[0].toInt32(),
+            "arg2 =", args[1],
+            "arg3 =", args[2],
+            "arg4 =", args[3],
+            "arg5 =", args[4]
+        );
+    }
+});
