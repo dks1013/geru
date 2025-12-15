@@ -1,0 +1,16 @@
+const prctl = Module.findExportByName(null, "prctl");
+
+Interceptor.attach(prctl, {
+    onEnter(args) {
+        if (args[0].toInt32() === 1398164801) {
+            const ra = this.returnAddress;
+            const m = Process.findModuleByAddress(ra);
+
+            console.log("\n[seccomp trigger]");
+            console.log("caller module:", m ? m.name : "unknown");
+            if (m) {
+                console.log("offset:", ra.sub(m.base));
+            }
+        }
+    }
+});
