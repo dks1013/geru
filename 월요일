@@ -1,0 +1,41 @@
+'use strict';
+
+// 1) 모듈 찾기
+const mod = Process.findModuleByName("IMGSF50Filter_64.dll");
+if (!mod) {
+  console.log("[-] module not found");
+  return;
+}
+
+// 2) 실제 명령 주소 계산
+const target = mod.base.add(0x896A);
+console.log("[+] target instruction:", target);
+
+// 3) 현재 스레드만 추적 (광범위 추적 금지)
+const tid = Process.getCurrentThreadId();
+
+// 4) Stalker로 '관찰만' 수행
+Stalker.follow(tid, {
+  events: {
+    exec: true   // 실행 이벤트만
+  },
+
+  transform(iterator) {
+    let insn;
+
+    while ((insn = iterator.next()) !== null) {
+      // 정확히 sub eax, 1 주소에서만 콜아웃
+      if (insn.address.equals(target)) {
+        iterator.putCallout(function (context) {
+          // ★ 읽기 전용: 값 출력만
+          console.log(
+            "[HIT] sub eax, 1 @", target,
+            " EAX(before):", context.eax
+          );
+        });
+      }
+
+      iterator.keep(); // 코드 변경 없음
+    }
+  }
+});
