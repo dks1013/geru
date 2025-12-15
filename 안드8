@@ -1,23 +1,24 @@
-
-const targets = [
-    "JNIEnvExt::CallStaticVoidMethod",
-    "JNIEnvExt::CallVoidMethod",
-    "JNIEnvExt::CallStaticIntMethod"
+const artTargets = [
+    "_ZN3art6Thread6CreateEPNS_6RuntimeEPNS_6Thread9TlsPtr_",
+    "_ZN3art6Thread8SetStateENS_11ThreadStateE",
+    "_ZN3art7Runtime4InitEv",
+    "_ZN3art7Runtime29SetHiddenApiEnforcementPolicyENS_26HiddenApiEnforcementPolicyE"
 ];
 
-targets.forEach(name => {
-    const f = Module.findExportByName("libart.so", name)
-          || Module.findExportByName("libartbase.so", name);
+artTargets.forEach(sym => {
+    const f =
+        Module.findExportByName("libart.so", sym) ||
+        Module.findExportByName("libartbase.so", sym);
 
     if (!f) return;
 
     Interceptor.attach(f, {
-        onEnter(args) {
+        onEnter() {
             const ra = this.returnAddress;
             const m = Process.findModuleByAddress(ra);
 
             if (m && m.name.startsWith("libguard")) {
-                console.log("\n[ART entry]");
+                console.log("\n[ART CORE ENTRY]");
                 console.log("caller:", m.name);
                 console.log("offset:", ra.sub(m.base));
             }
