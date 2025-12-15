@@ -1,0 +1,30 @@
+[
+  "open",
+  "openat",
+  "fopen",
+  "read",
+  "pread64",
+  "access",
+  "stat",
+  "lstat",
+  "getuid",
+  "getppid"
+].forEach(name => {
+    const f = Module.findExportByName(null, name);
+    if (!f) return;
+
+    Interceptor.attach(f, {
+        onEnter(args) {
+            this.name = name;
+
+            if (name === "open" || name === "openat" || name === "fopen") {
+                try {
+                    const path = args[0].readCString();
+                    if (path.indexOf("/proc") !== -1) {
+                        console.log("[CHECK]", name, path);
+                    }
+                } catch {}
+            }
+        }
+    });
+});
