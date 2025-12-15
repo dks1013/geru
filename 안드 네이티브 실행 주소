@@ -1,21 +1,12 @@
 const moduleName = "libzwfeyyadt.so";
+Stalker.queueDrainInterval = 10;
 
-function waitForModule() {
-    const m = Process.findModuleByName(moduleName);
-    if (!m) {
-        setTimeout(waitForModule, 100);
-        return;
-    }
-
-    console.log("[+] module loaded:", m.base, m.size);
-
+function startStalking(m) {
     const start = m.base;
     const end = m.base.add(m.size);
 
-    Process.enumerateThreads().forEach(t => {
-        console.log("[*] stalking tid", t.id);
-
-        Stalker.follow(t.id, {
+    function followThread(tid) {
+        Stalker.follow(tid, {
             events: { exec: true },
             onReceive(events) {
                 const parsed = Stalker.parse(events);
@@ -33,7 +24,40 @@ function waitForModule() {
                 });
             }
         });
+    }
+
+    // 기존 스레드
+    Process.enumerateThreads().forEach(t => {
+        followThread(t.id);
     });
+
+    // 새 스레드 생성 감시
+    Interceptor.attach(
+        Module.findExportByName(null, "pthread_create"),
+        {
+            onEnter(args) {
+                this.newThread = args[0];
+            },
+            onLeave() {
+                setTimeout(() => {
+                    Process.enumerateThreads().forEach(t => {
+                        followThread(t.id);
+                    });
+                }, 50);
+            }
+        }
+    );
+}
+
+function waitForModule() {
+    const m = Process.findModuleByName(moduleName);
+    if (!m) {
+        setTimeout(waitForModule, 100);
+        return;
+    }
+
+    console.log("[+] module loaded:", m.base, m.size);
+    startStalking(m);
 }
 
 waitForModule();
