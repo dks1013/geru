@@ -1,0 +1,13 @@
+const m = Process.findModuleByName("libzwfeyyadt.so");
+
+if (m) {
+    Module.enumerateExports(m.name).forEach(e => {
+        if (e.type === "function") {
+            Interceptor.attach(e.address, {
+                onEnter() {
+                    console.log("[CALL]", e.name, e.address);
+                }
+            });
+        }
+    });
+}
