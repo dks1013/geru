@@ -1,16 +1,26 @@
-const prctl = Module.findExportByName(null, "prctl");
 
-Interceptor.attach(prctl, {
-    onEnter(args) {
-        if (args[0].toInt32() === 1398164801) {
+const targets = [
+    "JNIEnvExt::CallStaticVoidMethod",
+    "JNIEnvExt::CallVoidMethod",
+    "JNIEnvExt::CallStaticIntMethod"
+];
+
+targets.forEach(name => {
+    const f = Module.findExportByName("libart.so", name)
+          || Module.findExportByName("libartbase.so", name);
+
+    if (!f) return;
+
+    Interceptor.attach(f, {
+        onEnter(args) {
             const ra = this.returnAddress;
             const m = Process.findModuleByAddress(ra);
 
-            console.log("\n[seccomp trigger]");
-            console.log("caller module:", m ? m.name : "unknown");
-            if (m) {
+            if (m && m.name.startsWith("libguard")) {
+                console.log("\n[ART entry]");
+                console.log("caller:", m.name);
                 console.log("offset:", ra.sub(m.base));
             }
         }
-    }
+    });
 });
