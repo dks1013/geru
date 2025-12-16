@@ -1,0 +1,5 @@
+const target = base.add(OFFSET); // BL .fopen 주소
+
+// 4바이트 opcode 읽기
+const bytes = Memory.readByteArray(target, 4);
+console.log("runtime opcode:", hexdump(bytes, { ansi: false }));
