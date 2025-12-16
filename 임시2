@@ -1,16 +1,6 @@
-Interceptor.attach(
-    Module.findExportByName(null, "android_dlopen_ext"),
-    {
-        onEnter(args) {
-            this.path = args[0].readCString();
-        },
-        onLeave(ret) {
-            if (this.path.includes("libzwfeyyadt.so")) {
-                const m = Process.findModuleByName("libzwfeyyadt.so");
-                console.log("loaded:", m.base);
-
-                // 여기서 즉시 주소 후킹
-            }
-        }
+Interceptor.attach(jniOnLoad, {
+    onLeave(retval) {
+        console.log("JNI_OnLoad ret =", retval);
+        retval.replace(0x00010006); // JNI_VERSION_1_6
     }
-);
+});
