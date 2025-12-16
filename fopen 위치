@@ -1,0 +1,31 @@
+const fopenPtr = Module.findExportByName("libc.so", "fopen");
+
+Interceptor.attach(fopenPtr, {
+    onEnter(args) {
+        const path = Memory.readUtf8String(args[0]);
+        const mode = Memory.readUtf8String(args[1]);
+
+        if (path.indexOf("/proc/self/maps") !== -1) {
+            console.log("[fopen] maps 접근!");
+            console.log(" path :", path);
+            console.log(" mode :", mode);
+
+            // ★ 호출한 정확한 위치 (PC)
+            console.log(" return address :", this.returnAddress);
+
+            // ★ 어느 so에서 호출했는지
+            const m = Process.findModuleByAddress(this.returnAddress);
+            if (m) {
+                console.log(" module :", m.name);
+                console.log(" offset :", this.returnAddress.sub(m.base));
+            }
+
+            // ★ 콜스택 (IDA 대조용)
+            console.log(
+                Thread.backtrace(this.context, Backtracer.ACCURATE)
+                    .map(DebugSymbol.fromAddress)
+                    .join("\n")
+            );
+        }
+    }
+});
