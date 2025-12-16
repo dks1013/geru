@@ -1,0 +1,8 @@
+Interceptor.attach(Module.findExportByName(null, "syscall"), {
+    onEnter() {
+        const sc = this.context.x8.toInt32();
+        if (sc === 178) {
+            console.log("[SYSCALL 178]", "tid=", Process.getCurrentThreadId());
+        }
+    }
+});
