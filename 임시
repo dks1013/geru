@@ -1,0 +1,18 @@
+Interceptor.attach(
+  Module.findExportByName("libc.so", "syscall"),
+  {
+    onEnter(args) {
+      const ra = this.returnAddress;
+      const base = Module.findBaseAddress("libzwfeyyadt.so");
+      if (!base) return;
+
+      const size = Module.getSize("libzwfeyyadt.so");
+      if (ra.compare(base) >= 0 && ra.compare(base.add(size)) < 0) {
+        console.log(
+          "[HIT] libzwfeyyadt.so offset =>",
+          ra.sub(base)
+        );
+      }
+    }
+  }
+);
