@@ -1,17 +1,11 @@
-
-Interceptor.attach(
-    Module.findExportByName(null, "android_dlopen_ext"),
-    {
-        onEnter(args) {
-            this.path = args[0].readCString();
-        },
-        onLeave(ret) {
-            if (this.path.includes("libzwfeyyadt.so")) {
-                const m = Process.findModuleByName("libzwfeyyadt.so");
-                console.log("loaded:", m.base);
-
-                // 여기서 즉시 주소 후킹
-            }
-        }
-    }
+const m = Process.findModuleByName("libzwfeyyadt.so");
+const jni = Module.findExportByName(
+    "libzwfeyyadt.so",
+    "JNI_OnLoad"
 );
+
+Interceptor.attach(jni, {
+    onEnter() {
+        console.log("JNI_OnLoad entered");
+    }
+});
