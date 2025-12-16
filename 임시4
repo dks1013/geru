@@ -1,0 +1,18 @@
+const syscallPtr = Module.findExportByName(null, "syscall");
+const origSyscall = new NativeFunction(
+    syscallPtr,
+    'long',
+    ['long', 'long', 'long', 'long', 'long', 'long']
+);
+
+Interceptor.replace(
+    syscallPtr,
+    new NativeCallback(function (num, a1, a2, a3, a4, a5) {
+        if (num === 178) {
+            console.log("[BLOCK] syscall 178");
+            return 0; // 성공처럼 속이고 차단
+        }
+        // 나머지는 원래 syscall 실행
+        return origSyscall(num, a1, a2, a3, a4, a5);
+    }, 'long', ['long','long','long','long','long','long'])
+);
