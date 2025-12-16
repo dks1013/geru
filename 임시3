@@ -1,0 +1,6 @@
+Interceptor.replace(Module.findExportByName(null, "syscall"),
+    new NativeCallback(function () {
+        console.log("blocked syscall");
+        return 0;
+    }, 'long', ['long'])
+);
