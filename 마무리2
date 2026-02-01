@@ -1,9 +1,0 @@
-let m = Process.findModuleByName("IMGSF50Filter_64.dll");
-let real = m.base.add(0x873F02);
-console.log("real address:", real);
-
-Interceptor.attach(real, {
-  onEnter(args) {
-    console.log("HIT 873F02");
-  }
-});
