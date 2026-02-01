@@ -1,7 +1,0 @@
-const base = ptr('0x613EFF');
-Memory.protect(base, 32, 'rwx');
-
-console.log(hexdump(base, {
-  length: 64,
-  ansi: true
-}));
