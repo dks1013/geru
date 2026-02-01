@@ -1,8 +1,0 @@
-const base = Module.findBaseAddress("YOUR.exe");
-const addr = base.add(0x78B8);  // IDA 기준 offset 사용
-
-Interceptor.attach(addr, {
-    onEnter(args) {
-        console.log("EAX =", this.context.eax);
-    }
-});
