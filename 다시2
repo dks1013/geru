@@ -1,5 +1,0 @@
-Interceptor.attach(realStretch, {
-  onEnter(args) {
-    console.log("StretchBlt called, srcDC:", args[5], "dstDC:", args[0]);
-  }
-});
