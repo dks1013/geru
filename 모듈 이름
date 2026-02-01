@@ -1,3 +1,0 @@
-Process.enumerateModules().forEach(m => {
-    console.log(m.name, m.base, m.size);
-});
