@@ -1,0 +1,15 @@
+Java.perform(function () {
+    var TargetClass = Java.use("com.example.app.TargetClass"); // 실제 클래스명
+
+    TargetClass.getDevmode.overload('boolean').implementation = function (pendding) {
+        console.log("[+] getDevmode called");
+        console.log("    original pendding =", pendding);
+
+        // 인자 강제 변경
+        pendding = true;
+        console.log("    modified pendding =", pendding);
+
+        // 원래 메소드 호출
+        return this.getDevmode(pendding);
+    };
+});
