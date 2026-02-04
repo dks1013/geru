@@ -1,0 +1,33 @@
+Java.perform(function () {
+
+    console.log("[*] start tracing entry class");
+
+    // 1. Application 시작 지점
+    var Application = Java.use("android.app.Application");
+    Application.attach.overload("android.content.Context").implementation = function (ctx) {
+        console.log("\n[+] Application.attach called");
+        console.log("    Class:", this.getClass().getName());
+
+        this.attach(ctx);
+    };
+
+    // 2. ActivityThread - 실제 앱 바인딩 시작
+    var ActivityThread = Java.use("android.app.ActivityThread");
+    ActivityThread.handleBindApplication.implementation = function (data) {
+        console.log("\n[+] handleBindApplication()");
+        console.log("    processName:", data.processName.value);
+        console.log("    appInfo.className:", data.appInfo.value.className.value); // Application 클래스
+
+        return this.handleBindApplication(data);
+    };
+
+    // 3. 모든 Activity onCreate 추적 (첫 실행 Activity 찾기)
+    var Activity = Java.use("android.app.Activity");
+    Activity.onCreate.overload("android.os.Bundle").implementation = function (bundle) {
+        var name = this.getClass().getName();
+        console.log("\n[+] Activity onCreate:", name);
+
+        return this.onCreate(bundle);
+    };
+
+});
