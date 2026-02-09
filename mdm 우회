@@ -1,0 +1,27 @@
+// check_loaded_class.js
+Java.perform(function () {
+  var target = "a.b.c.d"; // <= 여기만 네 클래스 FQCN으로 바꿔 (package + class)
+
+  var found = false;
+
+  Java.enumerateLoadedClasses({
+    onMatch: function (name) {
+      if (name === target) {
+        found = true;
+        console.log("[+] LOADED: " + name);
+      }
+    },
+    onComplete: function () {
+      if (!found) console.log("[-] NOT LOADED (in this process): " + target);
+
+      // 추가로, 로드돼 있으면 Java.use가 되는지까지 확인
+      try {
+        var K = Java.use(target);
+        console.log("[+] Java.use OK: " + target);
+        K.$dispose();
+      } catch (e) {
+        console.log("[-] Java.use FAIL: " + e);
+      }
+    }
+  });
+});
