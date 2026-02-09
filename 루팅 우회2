@@ -1,0 +1,24 @@
+Java.perform(function () {
+  var target = "여기에_JADX에서_복사한_풀클래스명"; // 예: com.xxx.yyy.RootChecker
+
+  try {
+    var klass = Java.use(target);
+    console.log("[+] FOUND: " + target);
+    // 여기까지 오면 클래스명은 맞는 거야(후킹은 다음 단계)
+  } catch (e) {
+    console.log("[-] NOT FOUND: " + target);
+    console.log("    reason: " + e);
+
+    // 비슷한 클래스명을 로드된 목록에서 찾아보기 (부분일치)
+    Java.enumerateLoadedClasses({
+      onMatch: function (name) {
+        if (name.indexOf(target.split('.').pop()) >= 0) {
+          console.log("    maybe: " + name);
+        }
+      },
+      onComplete: function () {
+        console.log("[*] enumerate complete");
+      }
+    });
+  }
+});
