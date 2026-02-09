@@ -1,0 +1,34 @@
+Java.perform(function () {
+  function stack() {
+    var Log = Java.use('android.util.Log');
+    var Exception = Java.use('java.lang.Exception');
+    return Log.getStackTraceString(Exception.$new());
+  }
+
+  // AlertDialog.Builder.setMessage(CharSequence)
+  var Builder = Java.use('android.app.AlertDialog$Builder');
+  Builder.setMessage.overload('java.lang.CharSequence').implementation = function (cs) {
+    console.log('[+] setMessage(CharSequence): ' + cs);
+    console.log(stack());
+    return this.setMessage(cs);
+  };
+
+  // AlertDialog.Builder.setMessage(int)  <-- R.string.xxx 를 바로 넘기는 케이스
+  Builder.setMessage.overload('int').implementation = function (id) {
+    console.log('[+] setMessage(resId): ' + id);
+    console.log(stack());
+    return this.setMessage(id);
+  };
+
+  // (옵션) title도 같이
+  Builder.setTitle.overload('java.lang.CharSequence').implementation = function (cs) {
+    console.log('[+] setTitle(CharSequence): ' + cs);
+    console.log(stack());
+    return this.setTitle(cs);
+  };
+  Builder.setTitle.overload('int').implementation = function (id) {
+    console.log('[+] setTitle(resId): ' + id);
+    console.log(stack());
+    return this.setTitle(id);
+  };
+});
