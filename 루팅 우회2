@@ -1,24 +1,31 @@
 Java.perform(function () {
-  var target = "여기에_JADX에서_복사한_풀클래스명"; // 예: com.xxx.yyy.RootChecker
+  var methodName = "여기에_후킹하고싶은_메서드명"; // 예: checkRoot, verify, a, b 등
+  var onlyAppPrefix = null; // 예: "com.target.app" 넣으면 속도/노이즈 개선됨. 모르면 null 유지.
 
-  try {
-    var klass = Java.use(target);
-    console.log("[+] FOUND: " + target);
-    // 여기까지 오면 클래스명은 맞는 거야(후킹은 다음 단계)
-  } catch (e) {
-    console.log("[-] NOT FOUND: " + target);
-    console.log("    reason: " + e);
+  console.log("[*] Searching loaded classes that have method:", methodName);
 
-    // 비슷한 클래스명을 로드된 목록에서 찾아보기 (부분일치)
-    Java.enumerateLoadedClasses({
-      onMatch: function (name) {
-        if (name.indexOf(target.split('.').pop()) >= 0) {
-          console.log("    maybe: " + name);
+  Java.enumerateLoadedClasses({
+    onMatch: function (name) {
+      try {
+        if (onlyAppPrefix && !name.startsWith(onlyAppPrefix)) return;
+
+        var K = Java.use(name);
+        var methods = K.class.getDeclaredMethods(); // java.lang.reflect.Method[]
+        for (var i = 0; i < methods.length; i++) {
+          var m = methods[i].getName().toString();
+          if (m === methodName) {
+            console.log("[+] Found " + name + "." + methodName);
+            // 오버로드/시그니처도 같이 보고 싶으면:
+            console.log("    " + methods[i].toString());
+          }
         }
-      },
-      onComplete: function () {
-        console.log("[*] enumerate complete");
+        K.$dispose();
+      } catch (e) {
+        // 일부 시스템/프록시 클래스는 접근 실패 가능. 무시.
       }
-    });
-  }
+    },
+    onComplete: function () {
+      console.log("[*] Done.");
+    }
+  });
 });
