@@ -5,30 +5,21 @@ Java.perform(function () {
     return Log.getStackTraceString(Exception.$new());
   }
 
-  // AlertDialog.Builder.setMessage(CharSequence)
-  var Builder = Java.use('android.app.AlertDialog$Builder');
-  Builder.setMessage.overload('java.lang.CharSequence').implementation = function (cs) {
-    console.log('[+] setMessage(CharSequence): ' + cs);
-    console.log(stack());
-    return this.setMessage(cs);
-  };
+  var Toast = Java.use('android.widget.Toast');
 
-  // AlertDialog.Builder.setMessage(int)  <-- R.string.xxx 를 바로 넘기는 케이스
-  Builder.setMessage.overload('int').implementation = function (id) {
-    console.log('[+] setMessage(resId): ' + id);
-    console.log(stack());
-    return this.setMessage(id);
-  };
+  // makeText(Context, CharSequence, int)
+  Toast.makeText.overload('android.content.Context', 'java.lang.CharSequence', 'int')
+    .implementation = function (ctx, text, duration) {
+      console.log('[+] Toast.makeText(CharSequence): ' + text + '  duration=' + duration);
+      console.log(stack());
+      return this.makeText(ctx, text, duration);
+    };
 
-  // (옵션) title도 같이
-  Builder.setTitle.overload('java.lang.CharSequence').implementation = function (cs) {
-    console.log('[+] setTitle(CharSequence): ' + cs);
-    console.log(stack());
-    return this.setTitle(cs);
-  };
-  Builder.setTitle.overload('int').implementation = function (id) {
-    console.log('[+] setTitle(resId): ' + id);
-    console.log(stack());
-    return this.setTitle(id);
-  };
+  // makeText(Context, int, int)  <-- R.string.slog5 같은 리소스ID
+  Toast.makeText.overload('android.content.Context', 'int', 'int')
+    .implementation = function (ctx, resId, duration) {
+      console.log('[+] Toast.makeText(resId): ' + resId + '  duration=' + duration);
+      console.log(stack());
+      return this.makeText(ctx, resId, duration);
+    };
 });
