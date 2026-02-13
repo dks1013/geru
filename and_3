@@ -1,0 +1,26 @@
+'use strict';
+
+const dl = Module.findExportByName(null, 'android_dlopen_ext') || Module.findExportByName(null, 'dlopen');
+if (!dl) throw new Error('no dlopen');
+
+let before = new Set(Process.enumerateModules().map(m => m.name));
+
+function diffModules() {
+  const now = Process.enumerateModules();
+  const added = now.filter(m => !before.has(m.name));
+  before = new Set(now.map(m => m.name));
+  return added;
+}
+
+Interceptor.attach(dl, {
+  onEnter(args) {
+    this.path = args[0].readCString();
+  },
+  onLeave() {
+    const added = diffModules();
+    if (this.path && this.path.includes('.so')) {
+      console.log('[dlopen path]', this.path);
+      added.forEach(m => console.log('  [+] new module name =', m.name, 'base=', m.base));
+    }
+  }
+});
