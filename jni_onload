@@ -1,26 +1,36 @@
-// frida -U -f com.xxx.app -l hook_jnionload.js --no-pause
 'use strict';
 
-function hookJNIOnLoad(soName) {
-  const addr = Module.findExportByName(soName, 'JNI_OnLoad');
-  if (!addr) {
-    console.log('[!] JNI_OnLoad not found in ' + soName);
-    return;
-  }
-  console.log('[+] JNI_OnLoad @', addr);
+const TARGET_SO = 'libtarget.so';
 
+function tryHook() {
+  const addr = Module.findExportByName(TARGET_SO, 'JNI_OnLoad');
+  if (!addr) return false;
+
+  console.log('[+] Hooking JNI_OnLoad @', addr);
   Interceptor.attach(addr, {
-    onEnter(args) {
-      // JNI_OnLoad(JavaVM* vm, void* reserved)
-      console.log('[*] JNI_OnLoad enter');
-      console.log('    JavaVM* =', args[0]);
-      console.log('    reserved =', args[1]);
-    },
-    onLeave(retval) {
-      console.log('[*] JNI_OnLoad leave, ret =', retval);
-    }
+    onEnter(args) { console.log('[*] JNI_OnLoad enter'); },
+    onLeave(retval) { console.log('[*] JNI_OnLoad leave ret=', retval); }
   });
+  return true;
 }
 
-// ✅ 너가 찾은 so 이름으로 바꿔
-hookJNIOnLoad('libtarget.so');
+const android_dlopen_ext = Module.findExportByName(null, 'android_dlopen_ext');
+Interceptor.attach(android_dlopen_ext, {
+  onEnter(args) {
+    this.path = args[0].readCString();
+  },
+  onLeave(ret) {
+    if (this.path && this.path.indexOf(TARGET_SO) !== -1) {
+      console.log('[android_dlopen_ext] loaded:', this.path);
+      // 로드 직후 약간 텀 두고 hook 시도(환경에 따라 필요)
+      setTimeout(() => {
+        if (!tryHook()) console.log('[!] JNI_OnLoad still not found');
+      }, 10);
+    }
+  }
+});
+
+// 이미 로드된 상태로 붙는 경우 대비
+setImmediate(() => {
+  if (!tryHook()) console.log('[*] wait for load...');
+});
