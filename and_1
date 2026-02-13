@@ -1,0 +1,18 @@
+'use strict';
+const SO = 'libwo.so';
+
+function hookOnLoadIfExport() {
+  const a = Module.findExportByName(SO, 'JNI_OnLoad');
+  console.log(a ? '[+] JNI_OnLoad export @ '+a : '[!] JNI_OnLoad export 없음(오프셋 후킹 필요)');
+}
+
+Interceptor.attach(Module.findExportByName(null,'android_dlopen_ext'),{
+  onEnter(args){ this.p=args[0].readCString(); },
+  onLeave(){
+    if(this.p && this.p.indexOf(SO)!==-1){
+      console.log('[+] loaded:', this.p);
+      setTimeout(hookOnLoadIfExport, 50);
+    }
+  }
+});
+setImmediate(hookOnLoadIfExport);
