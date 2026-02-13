@@ -1,37 +1,43 @@
 'use strict';
 
-function findLibMapping(libName) {
-  const f = new File("/proc/self/maps", "r");
-  const maps = f.readAll();
+function toPtr(hex) {
+  // ptr() 없는 버전 대비
+  try { return ptr(hex); } catch (e) { return new NativePointer(hex); }
+}
+
+function readMapsText() {
+  const f = new File('/proc/self/maps', 'r');
+  let out = '';
+  let line;
+  while ((line = f.readLine()) !== null) out += line + '\n';
   f.close();
+  return out;
+}
 
-  const lines = maps.split('\n').filter(l => l.includes(libName));
-  console.log(`[maps] lines containing "${libName}":`, lines.length);
+function findLibMapping(libName) {
+  const maps = readMapsText();
 
-  // start-end 주소 파싱
+  const lines = maps.split('\n').filter(l => l.indexOf(libName) !== -1);
+  console.log('[maps] lines containing "' + libName + '": ' + lines.length);
+  if (lines.length === 0) return;
+
   const ranges = lines.map(l => {
     const m = l.match(/^([0-9a-f]+)-([0-9a-f]+)\s+/i);
     if (!m) return null;
-    return { start: ptr('0x' + m[1]), end: ptr('0x' + m[2]), line: l };
-  }).filter(Boolean);
+    return { start: toPtr('0x' + m[1]), end: toPtr('0x' + m[2]), line: l };
+  }).filter(x => x);
 
-  // 제일 앞(start가 가장 작은) 매핑을 베이스 후보로 봄
-  ranges.sort((a,b)=> (a.start.compare(b.start)));
+  ranges.sort((a,b)=> a.start.compare(b.start));
   const r0 = ranges[0];
   console.log('[maps] base range =', r0.start, '-', r0.end);
   console.log('[maps] sample =', r0.line);
 
-  // enumerateModules() 중 base가 이 range 안에 들어가는 모듈 찾기
   const mods = Process.enumerateModules().filter(m =>
     m.base.compare(r0.start) >= 0 && m.base.compare(r0.end) < 0
   );
 
   console.log('[match] candidates:');
   mods.forEach(m => console.log('  ->', m.name, 'base=', m.base));
-
-  return mods;
 }
 
-setImmediate(() => {
-  findLibMapping('libwo.so');
-});
+setImmediate(() => findLibMapping('libwo.so'));
