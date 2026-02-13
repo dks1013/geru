@@ -1,34 +1,29 @@
 'use strict';
 
 const SO  = 'libwo.so';
-const OFF = 0x123456;   // ✅ IDA에서 본 JNI_OnLoad 시작 "베이스 기준 오프셋"으로 교체
+const OFF = 0x20AB8;
 
-function hook() {
+setImmediate(function () {
   const base = Module.findBaseAddress(SO);
-  if (!base) { console.log('[*] wait module...'); return; }
+  if (!base) {
+    console.log('[!] base not found');
+    return;
+  }
 
   let addr = base.add(OFF);
 
-  // ✅ ARM32 + Thumb 함수면 아래 주석 해제 (IDA에서 T 표시/odd 주소면 Thumb일 확률 큼)
+  // ARM32 Thumb 가능성 있으면 아래 활성화
   // addr = addr.add(1);
 
-  console.log('[+] base=', base, ' hook=', addr);
+  console.log('[+] base =', base);
+  console.log('[+] hook addr =', addr);
 
   Interceptor.attach(addr, {
-    onEnter(args) { console.log('[*] JNI_OnLoad(OFF) enter'); },
-    onLeave(retval) { console.log('[*] JNI_OnLoad(OFF) leave ret=', retval); }
-  });
-}
-
-const dl = Module.findExportByName(null, 'android_dlopen_ext') || Module.findExportByName(null,'dlopen');
-Interceptor.attach(dl, {
-  onEnter(args){ this.p = args[0].readCString(); },
-  onLeave(){
-    if (this.p && this.p.indexOf(SO) !== -1) {
-      console.log('[+] loaded:', this.p);
-      setTimeout(hook, 50);
+    onEnter() {
+      console.log('[*] offset hook enter');
+    },
+    onLeave(retval) {
+      console.log('[*] leave ret=', retval);
     }
-  }
+  });
 });
-
-setImmediate(hook);
