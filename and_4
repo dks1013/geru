@@ -1,43 +1,16 @@
 'use strict';
 
-function toPtr(hex) {
-  // ptr() 없는 버전 대비
-  try { return ptr(hex); } catch (e) { return new NativePointer(hex); }
-}
+const SO='libhwobs.so';
+const OFF=0x20AB8;
 
-function readMapsText() {
-  const f = new File('/proc/self/maps', 'r');
-  let out = '';
-  let line;
-  while ((line = f.readLine()) !== null) out += line + '\n';
-  f.close();
-  return out;
-}
-
-function findLibMapping(libName) {
-  const maps = readMapsText();
-
-  const lines = maps.split('\n').filter(l => l.indexOf(libName) !== -1);
-  console.log('[maps] lines containing "' + libName + '": ' + lines.length);
-  if (lines.length === 0) return;
-
-  const ranges = lines.map(l => {
-    const m = l.match(/^([0-9a-f]+)-([0-9a-f]+)\s+/i);
-    if (!m) return null;
-    return { start: toPtr('0x' + m[1]), end: toPtr('0x' + m[2]), line: l };
-  }).filter(x => x);
-
-  ranges.sort((a,b)=> a.start.compare(b.start));
-  const r0 = ranges[0];
-  console.log('[maps] base range =', r0.start, '-', r0.end);
-  console.log('[maps] sample =', r0.line);
-
-  const mods = Process.enumerateModules().filter(m =>
-    m.base.compare(r0.start) >= 0 && m.base.compare(r0.end) < 0
-  );
-
-  console.log('[match] candidates:');
-  mods.forEach(m => console.log('  ->', m.name, 'base=', m.base));
-}
-
-setImmediate(() => findLibMapping('libwo.so'));
+setImmediate(() => {
+  const base = Module.findBaseAddress(SO);
+  const addr = base.add(OFF); // 필요하면 .add(1)
+  Interceptor.attach(addr, {
+    onEnter() {
+      console.log('[HIT]', addr);
+      console.log(Thread.backtrace(this.context, Backtracer.ACCURATE)
+        .map(DebugSymbol.fromAddress).join('\n'));
+    }
+  });
+});
