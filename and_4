@@ -1,38 +1,27 @@
 'use strict';
 
-const SO='libhwobs.so';
-const OFF=0x20AB8;
+const SO = 'libhwobs.so';
 
-function hook() {
-  const base = Module.findBaseAddress(SO);
-  if (!base) {
-    console.log('[*] 아직 로드 안됨');
-    return;
-  }
-
-  const addr = base.add(OFF); // 필요하면 .add(1)
-
-  console.log('[+] base=', base);
-  console.log('[+] hook=', addr);
-
-  Interceptor.attach(addr, {
-    onEnter() {
-      console.log('[HIT]', addr);
-    }
-  });
+function inSo(addr){
+  const m = Process.findModuleByAddress(addr);
+  return m && m.name === SO;
 }
 
-const dl = Module.findExportByName(null,'android_dlopen_ext') ||
-           Module.findExportByName(null,'dlopen');
+setImmediate(function(){
 
-Interceptor.attach(dl,{
-  onEnter(args){ this.path=args[0].readCString(); },
-  onLeave(){
-    if(this.path && this.path.includes(SO)){
-      console.log('[+] loaded:',this.path);
-      setTimeout(hook,50);
+  Stalker.follow(Process.getCurrentThreadId(), {
+    events: { exec: true },
+
+    onReceive(events){
+      const parsed = Stalker.parse(events);
+
+      parsed.forEach(ev=>{
+        const pc = ev[0];
+        if(inSo(pc)){
+          console.log('[EXEC]', pc);
+        }
+      });
     }
-  }
-});
+  });
 
-setImmediate(hook);
+});
