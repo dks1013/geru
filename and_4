@@ -1,25 +1,61 @@
 'use strict';
 
-const SO = 'libhwobs.so';
+const SO  = 'libhwobs.so';
+const OFF = 0x20AB8;
+
+let started = false;
 
 function toPtr(x) {
   try { return ptr(x); } catch (e) { return new NativePointer(x); }
 }
 
-function inSo(pc){
-  const m = Process.findModuleByAddress(pc);
-  return m && m.name === SO;
-}
+function startStalker(tid) {
+  if (started) return;
+  started = true;
 
-setImmediate(function () {
-  Stalker.follow(Process.getCurrentThreadId(), {
+  console.log('[+] Stalker start on tid =', tid);
+
+  Stalker.follow(tid, {
     events: { exec: true },
     onReceive(events) {
       const parsed = Stalker.parse(events);
       for (let i = 0; i < parsed.length; i++) {
-        const pc = toPtr(parsed[i][0]);   // ✅ 포인터로 변환
-        if (inSo(pc)) console.log('[EXEC]', pc);
+        const pc = toPtr(parsed[i][0]);
+
+        const m = Process.findModuleByAddress(pc);
+        if (m && m.name === SO) {
+          // 너무 많이 나오면 아래 한 줄만 남기고 조건 더 좁혀도 됨
+          console.log('[EXEC]', pc);
+        }
       }
     }
   });
-});
+}
+
+function hookOffsetWhenLoaded() {
+  const base = Module.findBaseAddress(SO);
+  if (!base) return false;
+
+  let addr = base.add(OFF);
+  // ARM32 Thumb이면 필요할 수 있음:
+  // addr = addr.add(1);
+
+  console.log('[+] base =', base, 'hook =', addr);
+
+  Interceptor.attach(addr, {
+    onEnter() {
+      console.log('[HIT]', addr, 'tid=', this.threadId);
+      startStalker(this.threadId);
+    }
+  });
+
+  return true;
+}
+
+// 로드 전이면 기다렸다가 다시 시도
+function waitAndHook() {
+  if (hookOffsetWhenLoaded()) return;
+  setTimeout(waitAndHook, 50);
+}
+
+setImmediate(waitAndHook);
