@@ -1,0 +1,3 @@
+Process.enumerateModules().forEach(m=>{
+  if(m.name.includes('wo')) console.log(m.name, m.base);
+});
