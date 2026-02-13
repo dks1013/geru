@@ -3,14 +3,36 @@
 const SO='libhwobs.so';
 const OFF=0x20AB8;
 
-setImmediate(() => {
+function hook() {
   const base = Module.findBaseAddress(SO);
+  if (!base) {
+    console.log('[*] 아직 로드 안됨');
+    return;
+  }
+
   const addr = base.add(OFF); // 필요하면 .add(1)
+
+  console.log('[+] base=', base);
+  console.log('[+] hook=', addr);
+
   Interceptor.attach(addr, {
     onEnter() {
       console.log('[HIT]', addr);
-      console.log(Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).join('\n'));
     }
   });
+}
+
+const dl = Module.findExportByName(null,'android_dlopen_ext') ||
+           Module.findExportByName(null,'dlopen');
+
+Interceptor.attach(dl,{
+  onEnter(args){ this.path=args[0].readCString(); },
+  onLeave(){
+    if(this.path && this.path.includes(SO)){
+      console.log('[+] loaded:',this.path);
+      setTimeout(hook,50);
+    }
+  }
 });
+
+setImmediate(hook);
