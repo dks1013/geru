@@ -2,26 +2,24 @@
 
 const SO = 'libhwobs.so';
 
-function inSo(addr){
-  const m = Process.findModuleByAddress(addr);
+function toPtr(x) {
+  try { return ptr(x); } catch (e) { return new NativePointer(x); }
+}
+
+function inSo(pc){
+  const m = Process.findModuleByAddress(pc);
   return m && m.name === SO;
 }
 
-setImmediate(function(){
-
+setImmediate(function () {
   Stalker.follow(Process.getCurrentThreadId(), {
     events: { exec: true },
-
-    onReceive(events){
+    onReceive(events) {
       const parsed = Stalker.parse(events);
-
-      parsed.forEach(ev=>{
-        const pc = ev[0];
-        if(inSo(pc)){
-          console.log('[EXEC]', pc);
-        }
-      });
+      for (let i = 0; i < parsed.length; i++) {
+        const pc = toPtr(parsed[i][0]);   // ✅ 포인터로 변환
+        if (inSo(pc)) console.log('[EXEC]', pc);
+      }
     }
   });
-
 });
