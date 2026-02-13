@@ -1,0 +1,26 @@
+// frida -U -f com.xxx.app -l hook_jnionload.js --no-pause
+'use strict';
+
+function hookJNIOnLoad(soName) {
+  const addr = Module.findExportByName(soName, 'JNI_OnLoad');
+  if (!addr) {
+    console.log('[!] JNI_OnLoad not found in ' + soName);
+    return;
+  }
+  console.log('[+] JNI_OnLoad @', addr);
+
+  Interceptor.attach(addr, {
+    onEnter(args) {
+      // JNI_OnLoad(JavaVM* vm, void* reserved)
+      console.log('[*] JNI_OnLoad enter');
+      console.log('    JavaVM* =', args[0]);
+      console.log('    reserved =', args[1]);
+    },
+    onLeave(retval) {
+      console.log('[*] JNI_OnLoad leave, ret =', retval);
+    }
+  });
+}
+
+// ✅ 너가 찾은 so 이름으로 바꿔
+hookJNIOnLoad('libtarget.so');
