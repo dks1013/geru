@@ -1,0 +1,72 @@
+var cnt = 1;
+Interceptor.attach(Module.findExportByName(null, 'usleep'), {
+    onEnter: function(args) {
+      if(cnt > 30){
+         console.log("\x1b[33m[.] Xshield exit");
+         Thread.sleep(1000);
+      }else{
+         // console.log(cnt);
+         cnt ++;
+      }
+      },
+      onLeave: function(retval){
+       
+      }
+}); 
+
+
+
+Interceptor.attach(Module.findExportByName(null, 'open'), {
+   onEnter: function(args) {
+   
+      var library_path = Memory.readCString(args[0]);
+   
+      if(library_path.indexOf('/proc/self/maps') != -1){  //안드로이드 버전이 올라가서 로드라이브러리 후킹이 불가능해서 차선책으로 이 방법을 채택 
+      
+         var moduleName = Module.findBaseAddress("libdxbase.so");
+   
+         
+         var target_kill_1 = moduleName.add(0xA204); // 1. mutexinit & lock bypass
+         var target_kill_2 = moduleName.add(0x1CA90); // 2. memset + time bypass
+
+         // 1BA44 > 13B20 > 24c4 > start
+         
+         
+         Interceptor.attach(target_kill_1, {
+            onEnter: function (args) {
+               this.context.x0 = 0x0;
+               console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! target_kill_1 0xA204! : ' + this.context.x0);
+
+            },
+
+            onLeave: function (retval) {
+               
+            }
+
+         });
+      
+         
+         Interceptor.attach(target_kill_2, {
+            onEnter: function (args) {
+               this.context.x3 = 0x1;
+               console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! target_kill_2 0x1CA90! : ' + this.context.x3);
+
+            },
+
+            onLeave: function (retval) {
+               
+            }
+
+         });
+
+      
+       } 
+   },
+   
+   
+    onLeave: function(retval){
+      
+      
+   }
+   
+});
