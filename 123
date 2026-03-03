@@ -1,0 +1,9 @@
+Java.perform(function() {
+    var System = Java.use("java.lang.System");
+    System.getProperty.overload('java.lang.String').implementation = function(key) {
+        if (key.contains("proxy")) {
+            return null;
+        }
+        return this.getProperty(key);
+    };
+});
