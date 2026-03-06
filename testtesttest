@@ -1,0 +1,4 @@
+$hex = Get-Content body_hex.txt
+$hex = $hex -replace " ", ""
+[byte[]]$bytes = for ($i=0; $i -lt $hex.Length; $i+=2) { [Convert]::ToByte($hex.Substring($i,2),16) }
+[IO.File]::WriteAllBytes("body_fixed.bin",$bytes)
