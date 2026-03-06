@@ -1,0 +1,4 @@
+import brotli
+
+data=open("body.bin","rb").read()
+open("out.bin","wb").write(brotli.decompress(data))
