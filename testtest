@@ -1,0 +1,2 @@
+$bytes = [System.IO.File]::ReadAllBytes("body.bin")
+($bytes | ForEach-Object { $_.ToString("X2") }) -join " " | Set-Content body_hex.txt
