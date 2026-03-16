@@ -1,0 +1,78 @@
+Interceptor.attach(Module.findExportByName(null, 'kill'), {
+   onEnter: function(args) {
+   console.log('[*][*][*][*][*][*][*][*][*][*][*][*][*] KILL Call ');
+   args[0] = ptr(0x1234);
+   // Thread.sleep(2);
+   // console.log("Open called from:\n" + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join("\n") + "\n");
+   },
+    onLeave: function(retval){
+   }
+});
+
+
+Interceptor.attach(Module.findExportByName(null, 'exit'), {
+   onEnter: function(args) {
+   console.log('[*][*][*][*][*][*][*][*][*][*][*][*][*] EXIT Call ');
+   // Thread.sleep(2);
+
+   },
+    onLeave: function(retval){
+   }
+
+})
+
+
+Java.perform(function () {
+
+   var btn = Java.use('android.app.Activity');
+   btn.finish.overload().implementation = function () {
+      console.log("[+] Finish Button");
+     this.finish();
+     // Thread.sleep(2);
+            
+   };
+   
+   var reflect = Java.use("android.app.Dialog");
+   reflect.dismiss.implementation = function(){
+      console.log("[+] Dialog pass...!");
+      this.hide();
+      // Thread.sleep(2);
+   }
+   
+   var System = Java.use("java.lang.System");
+   System.exit.implementation = function () {
+      console.log("[+] Exit Button");
+     // Thread.sleep(2);
+            
+   };
+   
+   
+   var Detect = Java.use("com.towneers.www.liapp.policy.c");
+   Detect.a.implementation = function(activity){
+      console.log("[+]. detect alert!");
+      return false;
+   }
+  
+   
+});
+
+
+
+Interceptor.attach(Module.findExportByName(null, 'open'), {
+   onEnter: function(args) {
+ 
+   var library_path = Memory.readCString(args[0]);
+     
+    if(library_path.indexOf("xposed") !== -1 || library_path.indexOf("magisk") !== -1|| library_path.indexOf("frida") !== -1|| library_path.indexOf("/su") !== -1){
+        
+        Memory.protect(args[0], 16, 'rwx');
+        // console.log('[*] memcpy ============= '  +Memory.readCString(args[0]));
+        Memory.writeUtf8String(args[0], "fffff");
+      // console.log('[*] memcpy ============= '  +Memory.readCString(args[0]));
+      
+      // console.log("Open called from:\n" + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join("\n") + "\n");
+      }
+   },
+    onLeave: function(retval){
+   }
+});
