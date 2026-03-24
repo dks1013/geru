@@ -1,3 +1,5 @@
+// frida -U -f 패키지명 -l trace_comm_kill_nobt.js
+
 'use strict';
 
 function safeReadUtf8(p, len) {
@@ -19,26 +21,15 @@ function ptrDesc(p) {
     }
 }
 
-function showBt(ctx, tag) {
-    try {
-        const bt = Thread.backtrace(ctx, Backtracer.ACCURATE)
-            .slice(0, 8)
-            .map(ptrDesc)
-            .join('\n    ');
-        console.log(`[${tag}] bt:\n    ${bt}`);
-    } catch (e) {}
-}
-
-const openPtr = Module.findExportByName(null, "open");
+const openPtr  = Module.findExportByName(null, "open");
 const openatPtr = Module.findExportByName(null, "openat");
 const fopenPtr = Module.findExportByName(null, "fopen");
-const readPtr = Module.findExportByName(null, "read");
+const readPtr  = Module.findExportByName(null, "read");
 const fgetsPtr = Module.findExportByName(null, "fgets");
-const killPtr = Module.findExportByName(null, "kill");
-const strcmpPtr = Module.findExportByName(null, "strcmp");
-const strncmpPtr = Module.findExportByName(null, "strncmp");
-const memcmpPtr = Module.findExportByName(null, "memcmp");
-const strstrPtr = Module.findExportByName(null, "strstr");
+const killPtr  = Module.findExportByName(null, "kill");
+const tgkillPtr = Module.findExportByName(null, "tgkill");
+const raisePtr = Module.findExportByName(null, "raise");
+const abortPtr = Module.findExportByName(null, "abort");
 
 const fdPathMap = {};
 const fpPathMap = {};
@@ -94,9 +85,8 @@ if (readPtr) {
 
             let s = null;
             try { s = Memory.readUtf8String(this.buf, n); } catch (e) {}
-            console.log(`\n[read:comm] path=${this.path} data=${JSON.stringify(s)}`);
+            console.log(`[read:comm] ${this.path} -> ${JSON.stringify(s)}`);
             console.log(`[read:comm] caller=${ptrDesc(this.returnAddress)}`);
-            showBt(this.context, "read:comm");
         }
     });
 }
@@ -114,74 +104,8 @@ if (fgetsPtr) {
 
             let s = null;
             try { s = Memory.readUtf8String(this.buf); } catch (e) {}
-            console.log(`\n[fgets:comm] path=${this.path} data=${JSON.stringify(s)}`);
+            console.log(`[fgets:comm] ${this.path} -> ${JSON.stringify(s)}`);
             console.log(`[fgets:comm] caller=${ptrDesc(this.returnAddress)}`);
-            showBt(this.context, "fgets:comm");
-        }
-    });
-}
-
-function hitInteresting(a, b) {
-    const arr = ["pool-frida", "gum-js-loop", "gmain", "gdbus", "gamin"];
-    const aa = (a || "").toLowerCase();
-    const bb = (b || "").toLowerCase();
-    return arr.some(x => aa.indexOf(x) !== -1 || bb.indexOf(x) !== -1);
-}
-
-if (strcmpPtr) {
-    Interceptor.attach(strcmpPtr, {
-        onEnter(args) {
-            const a = safeReadUtf8(args[0]);
-            const b = safeReadUtf8(args[1]);
-            if (hitInteresting(a, b)) {
-                console.log(`\n[strcmp] a=${JSON.stringify(a)} b=${JSON.stringify(b)}`);
-                console.log(`[strcmp] caller=${ptrDesc(this.returnAddress)}`);
-                showBt(this.context, "strcmp");
-            }
-        }
-    });
-}
-
-if (strncmpPtr) {
-    Interceptor.attach(strncmpPtr, {
-        onEnter(args) {
-            const a = safeReadUtf8(args[0]);
-            const b = safeReadUtf8(args[1]);
-            if (hitInteresting(a, b)) {
-                console.log(`\n[strncmp] a=${JSON.stringify(a)} b=${JSON.stringify(b)} n=${args[2].toInt32()}`);
-                console.log(`[strncmp] caller=${ptrDesc(this.returnAddress)}`);
-                showBt(this.context, "strncmp");
-            }
-        }
-    });
-}
-
-if (memcmpPtr) {
-    Interceptor.attach(memcmpPtr, {
-        onEnter(args) {
-            let a = null, b = null;
-            const n = args[2].toInt32();
-            try { a = Memory.readUtf8String(args[0], Math.min(n, 64)); } catch (e) {}
-            try { b = Memory.readUtf8String(args[1], Math.min(n, 64)); } catch (e) {}
-            if (hitInteresting(a, b)) {
-                console.log(`\n[memcmp] a=${JSON.stringify(a)} b=${JSON.stringify(b)} n=${n}`);
-                console.log(`[memcmp] caller=${ptrDesc(this.returnAddress)}`);
-                showBt(this.context, "memcmp");
-            }
-        }
-    });
-}
-
-if (strstrPtr) {
-    Interceptor.attach(strstrPtr, {
-        onEnter(args) {
-            const a = safeReadUtf8(args[0]);
-            const b = safeReadUtf8(args[1]);
-            if (hitInteresting(a, b)) {
-                console.log(`\n[strstr] a=${JSON.stringify(a)} b=${JSON.stringify(b)}`);
-                console.log(`[strstr] caller=${ptrDesc(this.returnAddress)}`);
-                showBt(this.context, "strstr");
-            }
         }
     });
 }
@@ -189,11 +113,36 @@ if (strstrPtr) {
 if (killPtr) {
     Interceptor.attach(killPtr, {
         onEnter(args) {
-            console.log(`\n[kill] pid=${args[0].toInt32()} sig=${args[1].toInt32()}`);
+            console.log(`[kill] pid=${args[0].toInt32()} sig=${args[1].toInt32()}`);
             console.log(`[kill] caller=${ptrDesc(this.returnAddress)}`);
-            showBt(this.context, "kill");
         }
     });
 }
 
-console.log("[*] loaded");
+if (tgkillPtr) {
+    Interceptor.attach(tgkillPtr, {
+        onEnter(args) {
+            console.log(`[tgkill] tgid=${args[0].toInt32()} tid=${args[1].toInt32()} sig=${args[2].toInt32()}`);
+            console.log(`[tgkill] caller=${ptrDesc(this.returnAddress)}`);
+        }
+    });
+}
+
+if (raisePtr) {
+    Interceptor.attach(raisePtr, {
+        onEnter(args) {
+            console.log(`[raise] sig=${args[0].toInt32()}`);
+            console.log(`[raise] caller=${ptrDesc(this.returnAddress)}`);
+        }
+    });
+}
+
+if (abortPtr) {
+    Interceptor.attach(abortPtr, {
+        onEnter(args) {
+            console.log(`[abort] caller=${ptrDesc(this.returnAddress)}`);
+        }
+    });
+}
+
+console.log("[*] trace_comm_kill_nobt.js loaded");
