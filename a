@@ -1,4 +1,4 @@
-//하이닉스 루팅 탐지 로직
+//기본 앱 루팅 탐지 로직
 Java.perform(function () {
 	var test = Java.use("k1.b");
 	test.t.implementation = function(){
