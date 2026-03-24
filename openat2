@@ -1,8 +1,7 @@
 var fdMap = {};
-// 탐지 대상 키워드 목록
 const detectionKeywords = ["pool-frida", "gdbus", "gmain", "gum-js-loop"];
 
-// 1. openat 후킹 (파일을 여는 순간 추적)
+// 1. openat 후킹 (변화 없음)
 const openatPtr = Module.findExportByName("libc.so", "openat");
 Interceptor.attach(openatPtr, {
     onEnter: function (args) {
@@ -12,12 +11,12 @@ Interceptor.attach(openatPtr, {
         const fd = retval.toInt32();
         if (fd > 0 && this.path && this.path.includes("/comm")) {
             const tid = Process.getCurrentThreadId();
-            fdMap[tid] = fd; // 현재 스레드에서 연 fd 저장
+            fdMap[tid] = fd;
         }
     }
 });
 
-// 2. read 후킹 (데이터를 읽어올 때 변조)
+// 2. read 후킹 (에러 방지 로직 추가)
 const readPtr = Module.findExportByName("libc.so", "read");
 Interceptor.attach(readPtr, {
     onEnter: function (args) {
@@ -27,26 +26,38 @@ Interceptor.attach(readPtr, {
     },
     onLeave: function (retval) {
         const bytesRead = retval.toInt32();
+        
+        // 유효한 읽기이고 우리가 추적 중인 FD인 경우
         if (bytesRead > 0 && fdMap[this.tid] !== undefined && this.fd === fdMap[this.tid]) {
-            const content = this.buf.readUtf8String(bytesRead);
-            
-            // 키워드 중 하나라도 포함되어 있는지 검사
-            const isDetected = detectionKeywords.some(keyword => content.includes(keyword));
-
-            if (isDetected) {
-                console.log(`[!] 탐지 키워드 발견: "${content.trim()}" -> 우회 처리 중...`);
+            try {
+                // 직접 readUtf8String 대신 바이트 배열로 읽어서 처리
+                const bufferContent = this.buf.readByteArray(bytesRead);
+                const uint8Array = new Uint8Array(bufferContent);
                 
-                // 새로운 이름으로 덮어쓰기 (기존 데이터보다 짧을 수 있으므로 뒤를 0으로 채움)
-                const fakeName = "toy_thread\n";
-                this.buf.writeUtf8String(fakeName);
-                
-                // 나머지 버퍼 영역을 Null(0x00)로 초기화하여 잔상 제거
-                for (let i = fakeName.length; i < bytesRead; i++) {
-                    this.buf.add(i).writeU8(0);
+                // 바이트 배열을 문자열로 변환 (0x00 무시하고 안전하게 변환)
+                let content = "";
+                for (let i = 0; i < uint8Array.length; i++) {
+                    if (uint8Array[i] === 0) break; // Null 만나면 중단
+                    content += String.fromCharCode(uint8Array[i]);
                 }
-                
-                // 한 번 처리 후 맵에서 제거 (선택 사항)
-                delete fdMap[this.tid];
+
+                const isDetected = detectionKeywords.some(k => content.includes(k));
+
+                if (isDetected) {
+                    console.log(`[!] 탐지 우회: "${content.trim()}" 발견`);
+                    
+                    // 안전하게 덮어쓰기
+                    const fakeName = "toy_thread\n";
+                    this.buf.writeUtf8String(fakeName);
+                    
+                    // 남은 부분 0x00으로 밀기 (이게 가장 깔끔함)
+                    if (bytesRead > fakeName.length) {
+                        Memory.set(this.buf.add(fakeName.length), 0, bytesRead - fakeName.length);
+                    }
+                }
+            } catch (e) {
+                // 디코딩 에러 발생 시 무시하고 넘어감
+                // console.log("[-] Decoding skip:", e.message);
             }
         }
     }
