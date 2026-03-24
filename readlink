@@ -1,21 +1,30 @@
-const readlinkPtr = Module.findExportByName("libc.so", "readlink");
-if (readlinkPtr) {
-    Interceptor.attach(readlinkPtr, {
-        onEnter: function (args) {
-            this.path = args[0].readUtf8String();
-            this.buf = args[1];
-        },
-        onLeave: function (retval) {
-            const len = retval.toInt32();
-            if (len > 0) {
-                const content = this.buf.readUtf8String(len);
-                if (content.includes("frida") || content.includes("memfd")) {
-                    console.log("[!] memfd 탐지 우회 시도: " + content);
-                    const fake = "/system/lib64/libc.so"; // 아주 정상적인 경로로 위장
-                    this.buf.writeUtf8String(fake);
-                    retval.replace(fake.length);
+function hook_all_readlink() {
+    const targets = ["readlink", "readlinkat"];
+    
+    targets.forEach(name => {
+        const ptr = Module.findExportByName("libc.so", name);
+        if (ptr) {
+            Interceptor.attach(ptr, {
+                onEnter: function (args) {
+                    // readlink(path, buf, size)
+                    // readlinkat(dirfd, path, buf, size)
+                    this.path = (name === "readlink") ? args[0].readUtf8String() : args[1].readUtf8String();
+                    this.buf = (name === "readlink") ? args[1] : args[2];
+                },
+                onLeave: function (retval) {
+                    const len = retval.toInt32();
+                    if (len > 0) {
+                        const content = this.buf.readUtf8String(len);
+                        if (content.includes("frida") || content.includes("memfd")) {
+                            console.log(`[!] ${name} 탐지 우회: ${content}`);
+                            const fake = "/system/lib64/libc.so";
+                            this.buf.writeUtf8String(fake);
+                            retval.replace(fake.length);
+                        }
+                    }
                 }
-            }
+            });
         }
     });
 }
+hook_all_readlink();
