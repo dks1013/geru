@@ -1,36 +1,29 @@
-// readlink 및 readlinkat 후킹을 통한 경로 조작
-const readlinkPtr = Module.findExportByName("libc.so", "readlink");
-const readlinkatPtr = Module.findExportByName("libc.so", "readlinkat");
+// 기존 코드 아래에 추가하세요
+function hook_readlink_all() {
+    const readlinkPtr = Module.findExportByName("libc.so", "readlink");
+    const readlinkatPtr = Module.findExportByName("libc.so", "readlinkat");
 
-function hook_readlink(name) {
-    const addr = Module.findExportByName("libc.so", name);
-    if (!addr) return;
-
-    Interceptor.attach(addr, {
-        onEnter: function (args) {
-            // readlink(const char *path, char *buf, size_t bufsiz)
-            // readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz)
-            this.path = (name === "readlink") ? args[0].readUtf8String() : args[1].readUtf8String();
-            this.buf = (name === "readlink") ? args[1] : args[2];
-        },
-        onLeave: function (retval) {
-            const len = retval.toInt32();
-            if (len > 0 && this.path.includes("/proc/self/fd/")) {
-                const actualPath = this.buf.readUtf8String(len);
-                
-                // 앱이 감시 중인 경로(예: /proc/self/maps)가 
-                // 우리가 후킹한 가짜 파일 경로를 가리키고 있다면
-                if (actualPath.includes("/data/local/tmp/fake_maps")) {
-                    console.log(`[!] readlink 차단됨: ${this.path} -> 원본 경로로 덮어쓰기`);
-                    
-                    const originalPath = "/proc/self/maps";
-                    this.buf.writeUtf8String(originalPath);
-                    retval.replace(originalPath.length);
-                }
+    function handler(path, buf, retval) {
+        const len = retval.toInt32();
+        if (len > 0 && path && path.includes("/proc/self/fd/")) {
+            const actualTarget = buf.readUtf8String(len);
+            // 만약 실제 가리키는 곳이 변조된 파일이거나, 조작 흔적이 보이면 속임
+            if (actualTarget.includes("frida") || actualTarget.includes("tmp")) {
+                const fakePath = "/proc/self/maps"; // 정상 경로로 위장
+                buf.writeUtf8String(fakePath);
+                console.log("[*] readlink 탐지 무력화 (Memory Attack Bypass)");
+                return fakePath.length;
             }
         }
-    });
-}
+        return len;
+    }
 
-hook_readlink("readlink");
-hook_readlink("readlinkat");
+    if (readlinkPtr) {
+        Interceptor.attach(readlinkPtr, {
+            onEnter: function(args) { this.path = args[0].readUtf8String(); this.buf = args[1]; },
+            onLeave: function(retval) { retval.replace(handler(this.path, this.buf, retval)); }
+        });
+    }
+    // readlinkat도 동일한 방식으로 적용
+}
+hook_readlink_all();
