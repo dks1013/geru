@@ -1,0 +1,127 @@
+//하이닉스 루팅 탐지 로직
+Java.perform(function () {
+	var test = Java.use("k1.b");
+	test.t.implementation = function(){
+		console.log('[+][+][+][+][+][+][+][+][+][+][+][+][+] 기본 앱 탐지 무력화');
+		return;
+	}
+})
+
+//kill 무력화 -> 무력화 시 애플리케이션 백그라운드로 강제 실행
+Interceptor.attach(Module.findExportByName(null, 'kill'), {
+   onEnter: function(args) {
+   console.log('[*][*][*][*][*][*][*][*][*][*][*][*][*] KILL Call ');
+   args[0] = ptr(0x1234);
+	//Thread.sleep(2);
+	//console.log("Open called from:\n" + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join("\n") + "\n");
+   },
+    onLeave: function(retval){
+   }
+});
+
+//exit 무력화
+Interceptor.attach(Module.findExportByName(null, 'exit'), {
+   onEnter: function(args) {
+   console.log('[*][*][*][*][*][*][*][*][*][*][*][*][*] EXIT Call ');
+   // Thread.sleep(2);
+
+   },
+    onLeave: function(retval){
+   }
+
+})
+
+// fgets 읽는 문자열 변조
+'use strict';
+
+function s(p) {
+    try { return p.readCString(); } catch (e) { return null; }
+}
+
+Interceptor.attach(Module.findExportByName(null, "fgets"), {
+    onLeave(retval) {
+        if (retval.isNull()) return;
+
+        try {
+            let line = retval.readCString();
+            if (!line) return;
+
+            if (line.indexOf("frida") !== -1 ||
+                line.indexOf("agent") !== -1 ||
+                line.indexOf("memfd") !== -1 ||
+				line.indexOf("jit") !== -1 ||
+				line.indexOf("cache") !== -1) {
+
+                const patched = line
+                    .replace(/frida/gi, "fxxxx")
+                    .replace(/agent/gi, "axxxx")
+					.replace(/memfd/gi, "mxxxx")
+					.replace(/jit/gi, "jxx")
+                    .replace(/cache/gi, "cxxxx");
+
+                Memory.writeUtf8String(retval, patched);
+
+                //console.log("[patched] " + patched);
+				console.log("[*][*][*][*][*][*][*][*][*][*][*][*][*] /proc/self/maps 탐지 무력화");
+            }
+        } catch (e) {}
+    }
+});
+
+//프로세스 탐지 무력화
+var fdMap = {};
+const detectionKeywords = ["pool-frida", "gdbus", "gmain", "gum-js-loop"];
+
+const openatPtr = Module.findExportByName("libc.so", "openat");
+Interceptor.attach(openatPtr, {
+    onEnter: function (args) {
+        this.path = args[1].readUtf8String();
+    },
+    onLeave: function (retval) {
+        const fd = retval.toInt32();
+        if (fd > 0 && this.path && this.path.includes("/comm")) {
+            const tid = Process.getCurrentThreadId();
+            fdMap[tid] = fd;
+        }
+    }
+});
+
+const readPtr = Module.findExportByName("libc.so", "read");
+Interceptor.attach(readPtr, {
+    onEnter: function (args) {
+        this.fd = args[0].toInt32();
+        this.buf = args[1];
+        this.tid = Process.getCurrentThreadId();
+    },
+    onLeave: function (retval) {
+        const bytesRead = retval.toInt32();
+        
+        if (bytesRead > 0 && fdMap[this.tid] !== undefined && this.fd === fdMap[this.tid]) {
+            try {
+                const bufferContent = this.buf.readByteArray(bytesRead);
+                const uint8Array = new Uint8Array(bufferContent);
+                
+                let content = "";
+                for (let i = 0; i < uint8Array.length; i++) {
+                    if (uint8Array[i] === 0) break;
+                    content += String.fromCharCode(uint8Array[i]);
+                }
+
+                const isDetected = detectionKeywords.some(k => content.includes(k));
+
+                if (isDetected) {
+                    console.log('[*][*][*][*][*][*][*][*][*][*][*][*][*] 루팅 프로세스 탐지 무력화');
+                    
+                    const fakeName = "toy_thread\n";
+                    this.buf.writeUtf8String(fakeName);
+                    
+                    if (bytesRead > fakeName.length) {
+                        Memory.set(this.buf.add(fakeName.length), 0, bytesRead - fakeName.length);
+                    }
+                }
+            } catch (e) {
+				
+            }
+        }
+    }
+});
