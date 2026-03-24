@@ -1,0 +1,162 @@
+// frida -U -f 패키지명 -l check_task_comm.js
+
+'use strict';
+
+function safeReadUtf8(p) {
+    try {
+        if (p.isNull()) return null;
+        return Memory.readUtf8String(p);
+    } catch (e) {
+        return null;
+    }
+}
+
+function log(msg) {
+    console.log(msg);
+}
+
+const openPtr = Module.findExportByName(null, "open");
+const openatPtr = Module.findExportByName(null, "openat");
+const fopenPtr = Module.findExportByName(null, "fopen");
+const scandirPtr = Module.findExportByName(null, "scandir");
+const readPtr = Module.findExportByName(null, "read");
+const fgetsPtr = Module.findExportByName(null, "fgets");
+const strcmpPtr = Module.findExportByName(null, "strcmp");
+const strncmpPtr = Module.findExportByName(null, "strncmp");
+
+const fdPathMap = {};
+const fpPathMap = {};
+
+if (openPtr) {
+    Interceptor.attach(openPtr, {
+        onEnter(args) {
+            this.path = safeReadUtf8(args[0]);
+        },
+        onLeave(retval) {
+            const fd = retval.toInt32();
+            if (fd >= 0 && this.path) {
+                fdPathMap[fd] = this.path;
+                if (this.path.indexOf("/proc/") !== -1 &&
+                    (this.path.indexOf("/task") !== -1 || this.path.indexOf("/comm") !== -1)) {
+                    log(`[open] fd=${fd} path=${this.path}`);
+                }
+            }
+        }
+    });
+}
+
+if (openatPtr) {
+    Interceptor.attach(openatPtr, {
+        onEnter(args) {
+            this.path = safeReadUtf8(args[1]);
+        },
+        onLeave(retval) {
+            const fd = retval.toInt32();
+            if (fd >= 0 && this.path) {
+                fdPathMap[fd] = this.path;
+                if (this.path.indexOf("/proc/") !== -1 &&
+                    (this.path.indexOf("/task") !== -1 || this.path.indexOf("/comm") !== -1)) {
+                    log(`[openat] fd=${fd} path=${this.path}`);
+                }
+            }
+        }
+    });
+}
+
+if (fopenPtr) {
+    Interceptor.attach(fopenPtr, {
+        onEnter(args) {
+            this.path = safeReadUtf8(args[0]);
+            this.mode = safeReadUtf8(args[1]);
+        },
+        onLeave(retval) {
+            if (!retval.isNull() && this.path) {
+                fpPathMap[retval.toString()] = this.path;
+                if (this.path.indexOf("/proc/") !== -1 &&
+                    (this.path.indexOf("/task") !== -1 || this.path.indexOf("/comm") !== -1)) {
+                    log(`[fopen] fp=${retval} mode=${this.mode} path=${this.path}`);
+                }
+            }
+        }
+    });
+}
+
+if (scandirPtr) {
+    Interceptor.attach(scandirPtr, {
+        onEnter(args) {
+            this.dirp = safeReadUtf8(args[0]);
+        },
+        onLeave(retval) {
+            if (this.dirp && this.dirp.indexOf("/proc/") !== -1 && this.dirp.indexOf("/task") !== -1) {
+                log(`[scandir] dir=${this.dirp} result=${retval.toInt32()}`);
+            }
+        }
+    });
+}
+
+if (readPtr) {
+    Interceptor.attach(readPtr, {
+        onEnter(args) {
+            this.fd = args[0].toInt32();
+            this.buf = args[1];
+            this.count = args[2].toInt32();
+            this.path = fdPathMap[this.fd] || "";
+        },
+        onLeave(retval) {
+            const n = retval.toInt32();
+            if (n > 0 && this.path && this.path.indexOf("/proc/") !== -1 && this.path.indexOf("/comm") !== -1) {
+                try {
+                    const data = Memory.readUtf8String(this.buf, n);
+                    log(`[read:comm] fd=${this.fd} path=${this.path} -> "${data.replace(/\n/g, "\\n")}"`);
+                } catch (e) {
+                    log(`[read:comm] fd=${this.fd} path=${this.path} -> <non-utf8 ${n} bytes>`);
+                }
+            }
+        }
+    });
+}
+
+if (fgetsPtr) {
+    Interceptor.attach(fgetsPtr, {
+        onEnter(args) {
+            this.buf = args[0];
+            this.size = args[1].toInt32();
+            this.fp = args[2];
+            this.path = fpPathMap[this.fp.toString()] || "";
+        },
+        onLeave(retval) {
+            if (!retval.isNull() && this.path && this.path.indexOf("/proc/") !== -1 && this.path.indexOf("/comm") !== -1) {
+                try {
+                    const s = Memory.readUtf8String(this.buf);
+                    log(`[fgets:comm] path=${this.path} -> "${s.replace(/\n/g, "\\n")}"`);
+                } catch (e) {
+                    log(`[fgets:comm] path=${this.path} -> <read fail>`);
+                }
+            }
+        }
+    });
+}
+
+function hookCmp(name, ptr) {
+    if (!ptr) return;
+    Interceptor.attach(ptr, {
+        onEnter(args) {
+            const a = safeReadUtf8(args[0]);
+            const b = safeReadUtf8(args[1]);
+
+            const interesting = ["pool-frida", "gum-js-loop", "gbus", "gamin"];
+            const hit =
+                (a && interesting.some(x => a.indexOf(x) !== -1)) ||
+                (b && interesting.some(x => b.indexOf(x) !== -1));
+
+            if (hit) {
+                log(`[${name}] a="${a}" b="${b}"`);
+            }
+        }
+    });
+}
+
+hookCmp("strcmp", strcmpPtr);
+hookCmp("strncmp", strncmpPtr);
+
+log("[*] check_task_comm.js loaded");
