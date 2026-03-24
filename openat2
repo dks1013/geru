@@ -1,0 +1,53 @@
+var fdMap = {};
+// 탐지 대상 키워드 목록
+const detectionKeywords = ["pool-frida", "gdbus", "gmain", "gum-js-loop"];
+
+// 1. openat 후킹 (파일을 여는 순간 추적)
+const openatPtr = Module.findExportByName("libc.so", "openat");
+Interceptor.attach(openatPtr, {
+    onEnter: function (args) {
+        this.path = args[1].readUtf8String();
+    },
+    onLeave: function (retval) {
+        const fd = retval.toInt32();
+        if (fd > 0 && this.path && this.path.includes("/comm")) {
+            const tid = Process.getCurrentThreadId();
+            fdMap[tid] = fd; // 현재 스레드에서 연 fd 저장
+        }
+    }
+});
+
+// 2. read 후킹 (데이터를 읽어올 때 변조)
+const readPtr = Module.findExportByName("libc.so", "read");
+Interceptor.attach(readPtr, {
+    onEnter: function (args) {
+        this.fd = args[0].toInt32();
+        this.buf = args[1];
+        this.tid = Process.getCurrentThreadId();
+    },
+    onLeave: function (retval) {
+        const bytesRead = retval.toInt32();
+        if (bytesRead > 0 && fdMap[this.tid] !== undefined && this.fd === fdMap[this.tid]) {
+            const content = this.buf.readUtf8String(bytesRead);
+            
+            // 키워드 중 하나라도 포함되어 있는지 검사
+            const isDetected = detectionKeywords.some(keyword => content.includes(keyword));
+
+            if (isDetected) {
+                console.log(`[!] 탐지 키워드 발견: "${content.trim()}" -> 우회 처리 중...`);
+                
+                // 새로운 이름으로 덮어쓰기 (기존 데이터보다 짧을 수 있으므로 뒤를 0으로 채움)
+                const fakeName = "toy_thread\n";
+                this.buf.writeUtf8String(fakeName);
+                
+                // 나머지 버퍼 영역을 Null(0x00)로 초기화하여 잔상 제거
+                for (let i = fakeName.length; i < bytesRead; i++) {
+                    this.buf.add(i).writeU8(0);
+                }
+                
+                // 한 번 처리 후 맵에서 제거 (선택 사항)
+                delete fdMap[this.tid];
+            }
+        }
+    }
+});
