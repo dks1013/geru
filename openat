@@ -1,0 +1,32 @@
+const openat = Module.findExportByName("libc.so", "openat");
+
+Interceptor.attach(openat, {
+    onEnter: function (args) {
+        // args[1]은 경로 문자열 (const char *pathname)
+        const path = args[1].readUtf8String();
+        this.isProcComm = path.includes("/proc/") && path.includes("/comm");
+    },
+    onLeave: function (retval) {
+        if (this.isProcComm) {
+            // 이 fd가 나중에 read 될 때 내용을 가로챌 수 있도록 
+            // 현재 fd(retval)를 전역 변수나 맵에 저장해둡니다.
+            this.fd = retval.toInt32();
+            // 필요하다면 여기서 fd를 추적할 수 있습니다.
+        }
+    }
+});
+
+// 이후 read 함수를 후킹하여 해당 fd인 경우 "pool-frida" 문자열을 다른 값으로 치환
+const read = Module.findExportByName("libc.so", "read");
+Interceptor.attach(read, {
+    onEnter: function (args) {
+        this.fd = args[0].toInt32();
+        this.buf = args[1];
+    },
+    onLeave: function (retval) {
+        // 저장해둔 fd와 일치하면 버퍼를 덮어쓰기
+        if (this.fd == targetFd) { 
+            Memory.writeUtf8String(this.buf, "main\0"); // "pool-frida"를 "main"으로 변조
+        }
+    }
+});
