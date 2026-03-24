@@ -1,0 +1,6 @@
+onEnter: function(args) {
+    console.log('[!] 탐지 함수 호출됨! (Backtrace 확인)');
+    console.log(Thread.backtrace(this.context, Backtracer.ACCURATE)
+        .map(DebugSymbol.fromAddress).join('\n') + '\n');
+    args[0] = ptr(-1); // 프로세스 종료 방해
+}
