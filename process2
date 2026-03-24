@@ -1,0 +1,134 @@
+// frida -U -f 패키지명 -l trace_pool_frida_cmp.js
+
+'use strict';
+
+function safeReadUtf8(p, maxLen) {
+    try {
+        if (!p || p.isNull()) return null;
+        return Memory.readUtf8String(p, maxLen || 256);
+    } catch (e) {
+        return null;
+    }
+}
+
+function ptrDesc(p) {
+    try {
+        const m = Process.findModuleByAddress(p);
+        if (!m) return `${p} (unknown)`;
+        return `${p} (${m.name} + 0x${p.sub(m.base).toString(16)})`;
+    } catch (e) {
+        return `${p}`;
+    }
+}
+
+function printBt(ctx, tag) {
+    try {
+        const bt = Thread.backtrace(ctx, Backtracer.ACCURATE)
+            .map(ptrDesc)
+            .join('\n    ');
+        console.log(`[${tag}] backtrace:\n    ${bt}`);
+    } catch (e) {
+        console.log(`[${tag}] backtrace error: ${e}`);
+    }
+}
+
+const interesting = [
+    "pool-frida",
+    "gum-js-loop",
+    "gbus",
+    "gamin"
+];
+
+function hasInteresting(s) {
+    if (!s) return false;
+    const lower = s.toLowerCase();
+    return interesting.some(x => lower.indexOf(x.toLowerCase()) !== -1);
+}
+
+function hookStrcmpLike(name) {
+    const p = Module.findExportByName(null, name);
+    if (!p) {
+        console.log(`[-] ${name} not found`);
+        return;
+    }
+
+    console.log(`[*] hook ${name} @ ${p}`);
+
+    Interceptor.attach(p, {
+        onEnter(args) {
+            const a = safeReadUtf8(args[0]);
+            const b = safeReadUtf8(args[1]);
+
+            if (hasInteresting(a) || hasInteresting(b)) {
+                console.log(`\n[${name}] HIT`);
+                console.log(`  a = ${JSON.stringify(a)}`);
+                console.log(`  b = ${JSON.stringify(b)}`);
+                console.log(`  caller = ${ptrDesc(this.returnAddress)}`);
+                printBt(this.context, name);
+            }
+        }
+    });
+}
+
+function hookMemcmp() {
+    const p = Module.findExportByName(null, "memcmp");
+    if (!p) {
+        console.log("[-] memcmp not found");
+        return;
+    }
+
+    console.log(`[*] hook memcmp @ ${p}`);
+
+    Interceptor.attach(p, {
+        onEnter(args) {
+            const n = args[2].toInt32();
+            const len = Math.min(n, 128);
+
+            let a = null, b = null;
+
+            try { a = Memory.readUtf8String(args[0], len); } catch (e) {}
+            try { b = Memory.readUtf8String(args[1], len); } catch (e) {}
+
+            if (hasInteresting(a) || hasInteresting(b)) {
+                console.log(`\n[memcmp] HIT`);
+                console.log(`  n = ${n}`);
+                console.log(`  a = ${JSON.stringify(a)}`);
+                console.log(`  b = ${JSON.stringify(b)}`);
+                console.log(`  caller = ${ptrDesc(this.returnAddress)}`);
+                printBt(this.context, "memcmp");
+            }
+        }
+    });
+}
+
+function hookStrstr() {
+    const p = Module.findExportByName(null, "strstr");
+    if (!p) {
+        console.log("[-] strstr not found");
+        return;
+    }
+
+    console.log(`[*] hook strstr @ ${p}`);
+
+    Interceptor.attach(p, {
+        onEnter(args) {
+            const hay = safeReadUtf8(args[0]);
+            const needle = safeReadUtf8(args[1]);
+
+            if (hasInteresting(hay) || hasInteresting(needle)) {
+                console.log(`\n[strstr] HIT`);
+                console.log(`  haystack = ${JSON.stringify(hay)}`);
+                console.log(`  needle   = ${JSON.stringify(needle)}`);
+                console.log(`  caller = ${ptrDesc(this.returnAddress)}`);
+                printBt(this.context, "strstr");
+            }
+        }
+    });
+}
+
+hookStrcmpLike("strcmp");
+hookStrcmpLike("strncmp");
+hookMemcmp();
+hookStrstr();
+
+console.log("[*] trace_pool_frida_cmp.js loaded");
