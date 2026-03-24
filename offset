@@ -1,0 +1,10 @@
+const p = ptr("0x749ae06828");
+const m = Process.findModuleByAddress(p);
+
+if (m) {
+    console.log("module=" + m.name);
+    console.log("base=" + m.base);
+    console.log("offset=0x" + p.sub(m.base).toString(16));
+} else {
+    console.log("module not found");
+}
