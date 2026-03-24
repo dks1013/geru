@@ -1,0 +1,12 @@
+const accessPtr = Module.findExportByName("libc.so", "access");
+Interceptor.attach(accessPtr, {
+    onEnter: function (args) {
+        this.path = args[0].readUtf8String();
+    },
+    onLeave: function (retval) {
+        if (this.path && this.path.includes("/su")) {
+            console.log(`[!] su 탐지 차단 (access): ${this.path}`);
+            retval.replace(-1); // -1은 '파일 없음' 또는 '오류'를 의미
+        }
+    }
+});
