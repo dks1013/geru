@@ -1,29 +1,21 @@
-// 기존 코드 아래에 추가하세요
-function hook_readlink_all() {
-    const readlinkPtr = Module.findExportByName("libc.so", "readlink");
-    const readlinkatPtr = Module.findExportByName("libc.so", "readlinkat");
-
-    function handler(path, buf, retval) {
-        const len = retval.toInt32();
-        if (len > 0 && path && path.includes("/proc/self/fd/")) {
-            const actualTarget = buf.readUtf8String(len);
-            // 만약 실제 가리키는 곳이 변조된 파일이거나, 조작 흔적이 보이면 속임
-            if (actualTarget.includes("frida") || actualTarget.includes("tmp")) {
-                const fakePath = "/proc/self/maps"; // 정상 경로로 위장
-                buf.writeUtf8String(fakePath);
-                console.log("[*] readlink 탐지 무력화 (Memory Attack Bypass)");
-                return fakePath.length;
+const readlinkPtr = Module.findExportByName("libc.so", "readlink");
+if (readlinkPtr) {
+    Interceptor.attach(readlinkPtr, {
+        onEnter: function (args) {
+            this.path = args[0].readUtf8String();
+            this.buf = args[1];
+        },
+        onLeave: function (retval) {
+            const len = retval.toInt32();
+            if (len > 0) {
+                const content = this.buf.readUtf8String(len);
+                if (content.includes("frida") || content.includes("memfd")) {
+                    console.log("[!] memfd 탐지 우회 시도: " + content);
+                    const fake = "/system/lib64/libc.so"; // 아주 정상적인 경로로 위장
+                    this.buf.writeUtf8String(fake);
+                    retval.replace(fake.length);
+                }
             }
         }
-        return len;
-    }
-
-    if (readlinkPtr) {
-        Interceptor.attach(readlinkPtr, {
-            onEnter: function(args) { this.path = args[0].readUtf8String(); this.buf = args[1]; },
-            onLeave: function(retval) { retval.replace(handler(this.path, this.buf, retval)); }
-        });
-    }
-    // readlinkat도 동일한 방식으로 적용
+    });
 }
-hook_readlink_all();
