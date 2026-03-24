@@ -1,32 +1,46 @@
-const openat = Module.findExportByName("libc.so", "openat");
+// 전역 공간에 fd를 저장할 맵 생성
+var fdMap = {};
 
-Interceptor.attach(openat, {
+// 1. openat 후킹: /proc/.../comm 파일을 여는 순간을 포착
+const openatPtr = Module.findExportByName("libc.so", "openat");
+Interceptor.attach(openatPtr, {
     onEnter: function (args) {
-        // args[1]은 경로 문자열 (const char *pathname)
-        const path = args[1].readUtf8String();
-        this.isProcComm = path.includes("/proc/") && path.includes("/comm");
+        // args[1]은 파일 경로
+        this.path = args[1].readUtf8String();
     },
     onLeave: function (retval) {
-        if (this.isProcComm) {
-            // 이 fd가 나중에 read 될 때 내용을 가로챌 수 있도록 
-            // 현재 fd(retval)를 전역 변수나 맵에 저장해둡니다.
-            this.fd = retval.toInt32();
-            // 필요하다면 여기서 fd를 추적할 수 있습니다.
+        const fd = retval.toInt32();
+        if (fd > 0 && this.path && this.path.includes("/comm")) {
+            // 현재 스레드 ID를 키로 하여 fd 저장
+            const tid = Process.getCurrentThreadId();
+            fdMap[tid] = fd;
+            console.log(`[+] 감시 시작 - Path: ${this.path}, FD: ${fd}, TID: ${tid}`);
         }
     }
 });
 
-// 이후 read 함수를 후킹하여 해당 fd인 경우 "pool-frida" 문자열을 다른 값으로 치환
-const read = Module.findExportByName("libc.so", "read");
-Interceptor.attach(read, {
+// 2. read 후킹: 저장된 fd로부터 데이터를 읽을 때 조작
+const readPtr = Module.findExportByName("libc.so", "read");
+Interceptor.attach(readPtr, {
     onEnter: function (args) {
         this.fd = args[0].toInt32();
         this.buf = args[1];
+        this.tid = Process.getCurrentThreadId();
     },
     onLeave: function (retval) {
-        // 저장해둔 fd와 일치하면 버퍼를 덮어쓰기
-        if (this.fd == targetFd) { 
-            Memory.writeUtf8String(this.buf, "main\0"); // "pool-frida"를 "main"으로 변조
+        // 현재 스레드가 방금 열었던 그 fd를 읽고 있는지 확인
+        if (fdMap[this.tid] !== undefined && this.fd === fdMap[this.tid]) {
+            const content = this.buf.readUtf8String();
+            
+            if (content && content.includes("pool-frida")) {
+                console.log(`[!] 탐지 우회 성공: ${content.trim()} -> 변조됨`);
+                
+                // 버퍼 내용을 일반적인 이름(예: 무작위 스레드명)으로 교체
+                this.buf.writeUtf8String("toy_thread\n");
+                
+                // 한 번 수정했으면 맵에서 제거 (메모리 관리 및 중복 처리 방지)
+                delete fdMap[this.tid];
+            }
         }
     }
 });
