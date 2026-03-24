@@ -1,11 +1,9 @@
-// frida -U -f 패키지명 -l trace_pool_frida_cmp.js
-
 'use strict';
 
-function safeReadUtf8(p, maxLen) {
+function safeReadUtf8(p, len) {
     try {
         if (!p || p.isNull()) return null;
-        return Memory.readUtf8String(p, maxLen || 256);
+        return Memory.readUtf8String(p, len || 256);
     } catch (e) {
         return null;
     }
@@ -21,114 +19,181 @@ function ptrDesc(p) {
     }
 }
 
-function printBt(ctx, tag) {
+function showBt(ctx, tag) {
     try {
         const bt = Thread.backtrace(ctx, Backtracer.ACCURATE)
+            .slice(0, 8)
             .map(ptrDesc)
             .join('\n    ');
-        console.log(`[${tag}] backtrace:\n    ${bt}`);
-    } catch (e) {
-        console.log(`[${tag}] backtrace error: ${e}`);
-    }
+        console.log(`[${tag}] bt:\n    ${bt}`);
+    } catch (e) {}
 }
 
-const interesting = [
-    "pool-frida",
-    "gum-js-loop",
-    "gbus",
-    "gamin"
-];
+const openPtr = Module.findExportByName(null, "open");
+const openatPtr = Module.findExportByName(null, "openat");
+const fopenPtr = Module.findExportByName(null, "fopen");
+const readPtr = Module.findExportByName(null, "read");
+const fgetsPtr = Module.findExportByName(null, "fgets");
+const killPtr = Module.findExportByName(null, "kill");
+const strcmpPtr = Module.findExportByName(null, "strcmp");
+const strncmpPtr = Module.findExportByName(null, "strncmp");
+const memcmpPtr = Module.findExportByName(null, "memcmp");
+const strstrPtr = Module.findExportByName(null, "strstr");
 
-function hasInteresting(s) {
-    if (!s) return false;
-    const lower = s.toLowerCase();
-    return interesting.some(x => lower.indexOf(x.toLowerCase()) !== -1);
+const fdPathMap = {};
+const fpPathMap = {};
+
+if (openPtr) {
+    Interceptor.attach(openPtr, {
+        onEnter(args) {
+            this.path = safeReadUtf8(args[0]);
+        },
+        onLeave(retval) {
+            const fd = retval.toInt32();
+            if (fd >= 0 && this.path) fdPathMap[fd] = this.path;
+        }
+    });
 }
 
-function hookStrcmpLike(name) {
-    const p = Module.findExportByName(null, name);
-    if (!p) {
-        console.log(`[-] ${name} not found`);
-        return;
-    }
+if (openatPtr) {
+    Interceptor.attach(openatPtr, {
+        onEnter(args) {
+            this.path = safeReadUtf8(args[1]);
+        },
+        onLeave(retval) {
+            const fd = retval.toInt32();
+            if (fd >= 0 && this.path) fdPathMap[fd] = this.path;
+        }
+    });
+}
 
-    console.log(`[*] hook ${name} @ ${p}`);
+if (fopenPtr) {
+    Interceptor.attach(fopenPtr, {
+        onEnter(args) {
+            this.path = safeReadUtf8(args[0]);
+        },
+        onLeave(retval) {
+            if (!retval.isNull() && this.path) {
+                fpPathMap[retval.toString()] = this.path;
+            }
+        }
+    });
+}
 
-    Interceptor.attach(p, {
+if (readPtr) {
+    Interceptor.attach(readPtr, {
+        onEnter(args) {
+            this.fd = args[0].toInt32();
+            this.buf = args[1];
+            this.path = fdPathMap[this.fd] || "";
+        },
+        onLeave(retval) {
+            const n = retval.toInt32();
+            if (n <= 0) return;
+            if (this.path.indexOf("/proc/") === -1 || this.path.indexOf("/comm") === -1) return;
+
+            let s = null;
+            try { s = Memory.readUtf8String(this.buf, n); } catch (e) {}
+            console.log(`\n[read:comm] path=${this.path} data=${JSON.stringify(s)}`);
+            console.log(`[read:comm] caller=${ptrDesc(this.returnAddress)}`);
+            showBt(this.context, "read:comm");
+        }
+    });
+}
+
+if (fgetsPtr) {
+    Interceptor.attach(fgetsPtr, {
+        onEnter(args) {
+            this.buf = args[0];
+            this.fp = args[2];
+            this.path = fpPathMap[this.fp.toString()] || "";
+        },
+        onLeave(retval) {
+            if (retval.isNull()) return;
+            if (this.path.indexOf("/proc/") === -1 || this.path.indexOf("/comm") === -1) return;
+
+            let s = null;
+            try { s = Memory.readUtf8String(this.buf); } catch (e) {}
+            console.log(`\n[fgets:comm] path=${this.path} data=${JSON.stringify(s)}`);
+            console.log(`[fgets:comm] caller=${ptrDesc(this.returnAddress)}`);
+            showBt(this.context, "fgets:comm");
+        }
+    });
+}
+
+function hitInteresting(a, b) {
+    const arr = ["pool-frida", "gum-js-loop", "gmain", "gdbus", "gamin"];
+    const aa = (a || "").toLowerCase();
+    const bb = (b || "").toLowerCase();
+    return arr.some(x => aa.indexOf(x) !== -1 || bb.indexOf(x) !== -1);
+}
+
+if (strcmpPtr) {
+    Interceptor.attach(strcmpPtr, {
         onEnter(args) {
             const a = safeReadUtf8(args[0]);
             const b = safeReadUtf8(args[1]);
-
-            if (hasInteresting(a) || hasInteresting(b)) {
-                console.log(`\n[${name}] HIT`);
-                console.log(`  a = ${JSON.stringify(a)}`);
-                console.log(`  b = ${JSON.stringify(b)}`);
-                console.log(`  caller = ${ptrDesc(this.returnAddress)}`);
-                printBt(this.context, name);
+            if (hitInteresting(a, b)) {
+                console.log(`\n[strcmp] a=${JSON.stringify(a)} b=${JSON.stringify(b)}`);
+                console.log(`[strcmp] caller=${ptrDesc(this.returnAddress)}`);
+                showBt(this.context, "strcmp");
             }
         }
     });
 }
 
-function hookMemcmp() {
-    const p = Module.findExportByName(null, "memcmp");
-    if (!p) {
-        console.log("[-] memcmp not found");
-        return;
-    }
-
-    console.log(`[*] hook memcmp @ ${p}`);
-
-    Interceptor.attach(p, {
+if (strncmpPtr) {
+    Interceptor.attach(strncmpPtr, {
         onEnter(args) {
-            const n = args[2].toInt32();
-            const len = Math.min(n, 128);
+            const a = safeReadUtf8(args[0]);
+            const b = safeReadUtf8(args[1]);
+            if (hitInteresting(a, b)) {
+                console.log(`\n[strncmp] a=${JSON.stringify(a)} b=${JSON.stringify(b)} n=${args[2].toInt32()}`);
+                console.log(`[strncmp] caller=${ptrDesc(this.returnAddress)}`);
+                showBt(this.context, "strncmp");
+            }
+        }
+    });
+}
 
+if (memcmpPtr) {
+    Interceptor.attach(memcmpPtr, {
+        onEnter(args) {
             let a = null, b = null;
-
-            try { a = Memory.readUtf8String(args[0], len); } catch (e) {}
-            try { b = Memory.readUtf8String(args[1], len); } catch (e) {}
-
-            if (hasInteresting(a) || hasInteresting(b)) {
-                console.log(`\n[memcmp] HIT`);
-                console.log(`  n = ${n}`);
-                console.log(`  a = ${JSON.stringify(a)}`);
-                console.log(`  b = ${JSON.stringify(b)}`);
-                console.log(`  caller = ${ptrDesc(this.returnAddress)}`);
-                printBt(this.context, "memcmp");
+            const n = args[2].toInt32();
+            try { a = Memory.readUtf8String(args[0], Math.min(n, 64)); } catch (e) {}
+            try { b = Memory.readUtf8String(args[1], Math.min(n, 64)); } catch (e) {}
+            if (hitInteresting(a, b)) {
+                console.log(`\n[memcmp] a=${JSON.stringify(a)} b=${JSON.stringify(b)} n=${n}`);
+                console.log(`[memcmp] caller=${ptrDesc(this.returnAddress)}`);
+                showBt(this.context, "memcmp");
             }
         }
     });
 }
 
-function hookStrstr() {
-    const p = Module.findExportByName(null, "strstr");
-    if (!p) {
-        console.log("[-] strstr not found");
-        return;
-    }
-
-    console.log(`[*] hook strstr @ ${p}`);
-
-    Interceptor.attach(p, {
+if (strstrPtr) {
+    Interceptor.attach(strstrPtr, {
         onEnter(args) {
-            const hay = safeReadUtf8(args[0]);
-            const needle = safeReadUtf8(args[1]);
-
-            if (hasInteresting(hay) || hasInteresting(needle)) {
-                console.log(`\n[strstr] HIT`);
-                console.log(`  haystack = ${JSON.stringify(hay)}`);
-                console.log(`  needle   = ${JSON.stringify(needle)}`);
-                console.log(`  caller = ${ptrDesc(this.returnAddress)}`);
-                printBt(this.context, "strstr");
+            const a = safeReadUtf8(args[0]);
+            const b = safeReadUtf8(args[1]);
+            if (hitInteresting(a, b)) {
+                console.log(`\n[strstr] a=${JSON.stringify(a)} b=${JSON.stringify(b)}`);
+                console.log(`[strstr] caller=${ptrDesc(this.returnAddress)}`);
+                showBt(this.context, "strstr");
             }
         }
     });
 }
 
-hookStrcmpLike("strcmp");
-hookStrcmpLike("strncmp");
-hookMemcmp();
-hookStrstr();
+if (killPtr) {
+    Interceptor.attach(killPtr, {
+        onEnter(args) {
+            console.log(`\n[kill] pid=${args[0].toInt32()} sig=${args[1].toInt32()}`);
+            console.log(`[kill] caller=${ptrDesc(this.returnAddress)}`);
+            showBt(this.context, "kill");
+        }
+    });
+}
 
-console.log("[*] trace_pool_frida_cmp.js loaded");
+console.log("[*] loaded");
