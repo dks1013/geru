@@ -1,0 +1,32 @@
+(function() {
+    const killPtr = Module.findExportByName(null, "kill");
+
+    if (killPtr) {
+        Interceptor.attach(killPtr, {
+            onEnter: function(args) {
+                const pid = args[0].toInt32();
+                const sig = args[1].toInt32();
+                const lr = this.context.lr; // 나를 호출한 놈의 주소
+
+                console.log("\n" + "!" .repeat(40));
+                console.log(`[🚨 TERMINATION DETECTED]`);
+                console.log(`    - Target PID: ${pid}`);
+                console.log(`    - Signal: ${sig} (9: SIGKILL)`);
+                console.log(`    - Called from: ${lr}`);
+
+                // libLIAPP.so의 베이스 주소를 찾아 오프셋 계산
+                const module = Process.findModuleByAddress(lr);
+                if (module) {
+                    const offset = lr.sub(module.base);
+                    console.log(`    - Origin Module: ${module.name}`);
+                    console.log(`    - Relative Offset: ${offset}`);
+                }
+                console.log("!" .repeat(40) + "\n");
+
+                // 만약 죽는 걸 막고 싶다면? (임시 방편)
+                // args[1] = ptr(0); // 시그널을 무효화하거나, 아예 호출을 무시하게 설정 가능
+            }
+        });
+        console.log("[*] Kill syscall 추적 중... (무결성 검사 안전)");
+    }
+})();
