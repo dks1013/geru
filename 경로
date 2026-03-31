@@ -74,3 +74,24 @@ C:\Users\[사용자명]\source\repos\
 ​C:\Users\Public\desktop.ini
 ​C:\Users\Default\NTUSER.DAT
 ​C:\Users\Administrator\desktop.ini (관리자 계정 존재 확인용
+
+
+​1. 계정 존재 여부 확인용 (최저 권한)
+​이 경로들은 파일 내용을 읽지 못하더라도, **"Access Denied(403)"**가 뜨면 계정이 맞는 것이고, **"File Not Found(404)"**가 뜨면 계정명이 틀린 것입니다.
+​C:\Users\[USER]\Desktop (디렉터리 자체 접근)
+​C:\Users\[USER]\AppData\Local\Temp (임시 폴더)
+​C:\Users\[USER]\Documents (문서 폴더)
+​2. 내용까지 읽을 가능성이 높은 '혜자' 경로
+​보안 설정 미비로 인해 웹 서버 권한(iisapppool 등)으로도 내용이 보일 수 있는 경로들입니다.
+​C:\Users\[USER]\.ssh\known_hosts
+​SSH 접속 기록이 담긴 텍스트 파일입니다. id_rsa는 막혀도 이 파일은 열리는 경우가 많습니다.
+​C:\Users\[USER]\AppData\Local\Microsoft\Windows\INetCache\counters.dat
+​시스템 캐시 관련 파일로, 권한이 비교적 느슨합니다.
+​C:\Users\[USER]\AppData\Roaming\Microsoft\Windows\Recent\CustomDestinations
+​최근 항목 바로가기 정보가 담긴 폴더입니다.
+​3. 사내 PC 특화 검증 경로 (추천)
+​사내 PC라면 특정 소프트웨어가 설치되면서 권한이 꼬여있는 지점이 있습니다.
+​C:\Users\[USER]\AppData\Local\Google\Chrome\User Data\Last Version
+​크롬이 설치되어 있다면 버전 정보 파일은 읽기 권한이 너그러운 편입니다.
+​C:\Users\[USER]\.gitconfig
+​개발자 PC라면 루트에 있는 Git 설정 파일은 보통 읽기 권한이 열려 있습니다. (사용자 이메일 주소 탈취 가능)
