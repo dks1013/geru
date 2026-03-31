@@ -36,3 +36,10 @@
 ​URL Encoding: ..%2f..%2f..%2fWindows%2fwin.ini
 ​Double Encoding: ..%252f..%252f..%252fWindows%252fwin.ini
 ​Unicode Encoding: ..%u2215..%u2215Windows%u2215win.ini
+
+C:\inetpub\wwwroot\
+C:\inetpub\wwwroot\WEB-INF\classes\
+C:\inetpub\wwwroot\WEB-INF\lib\
+C:\Program Files\Apache Software Foundation\Tomcat 9.0\webapps\ROOT\WEB-INF\classes\
+C:\Users\[사용자명]\Documents\GitHub\
+C:\Users\[사용자명]\source\repos\
