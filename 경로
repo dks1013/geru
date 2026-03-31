@@ -43,3 +43,34 @@ C:\inetpub\wwwroot\WEB-INF\lib\
 C:\Program Files\Apache Software Foundation\Tomcat 9.0\webapps\ROOT\WEB-INF\classes\
 C:\Users\[사용자명]\Documents\GitHub\
 C:\Users\[사용자명]\source\repos\
+
+
+​1. 사용자명(ID) 탈취용 경로 (가장 우선순위)
+​사용자 이름을 알아야 C:\Users\[사용자]\ 진입이 가능합니다. 아래 파일들은 보통 권한이 낮아도 읽힙니다.
+​C:\Windows\debug\NetSetup.log (강력 추천: 설치/도메인 가입 시 사용된 계정명 기록)
+​C:\Windows\Panther\setupact.log (설치 로그)
+​C:\Windows\System32\Sysprep\Panther\setupact.log
+​C:\Windows\System32\inetsrv\config\applicationHost.config (IIS 실행 계정 확인)
+​2. 소스 코드 및 DB 자격 증명 (Java/Spring 환경)
+​Bootstrap-4.0.jar가 발견된 근처(보통 WEB-INF)를 집중 공략하세요.
+​.\WEB-INF\web.xml (서블릿 및 경로 매핑)
+​.\WEB-INF\classes\application.properties (DB 계정, API 키)
+​.\WEB-INF\classes\application.yml (설정 파일)
+​.\WEB-INF\classes\db.properties (데이터베이스 정보)
+​.\WEB-INF\lib\ (사용 중인 라이브러리 목록 - 디렉터리 리스팅 시도)
+​3. 시스템 기본 정보 및 네트워크
+​시스템의 기본 구조와 내부망 정보를 파악합니다.
+​C:\Windows\win.ini (취약점 유효성 테스트용)
+​C:\Windows\System32\drivers\etc\hosts (내부망 IP 및 도메인)
+​C:\Windows\System32\drivers\etc\networks
+​C:\Windows\System32\config\AppEvent.Evt (이벤트 로그 - 사용자 활동 기록)
+​4. 무인 설치 파일 (관리자 계정/비밀번호 노출 가능)
+​운이 좋으면 평문 비밀번호를 얻을 수 있습니다.
+​C:\Windows\Panther\Unattend.xml
+​C:\Windows\Panther\Unattended.xml
+​C:\Windows\System32\Sysprep\unattend.xml
+​5. 공용 경로 및 추측 가능한 사용자 경로
+​사용자 이름을 알아낸 후, 혹은 공용 폴더를 확인하기 위함입니다.
+​C:\Users\Public\desktop.ini
+​C:\Users\Default\NTUSER.DAT
+​C:\Users\Administrator\desktop.ini (관리자 계정 존재 확인용
