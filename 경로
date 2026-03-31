@@ -95,3 +95,27 @@ C:\Users\[사용자명]\source\repos\
 ​크롬이 설치되어 있다면 버전 정보 파일은 읽기 권한이 너그러운 편입니다.
 ​C:\Users\[USER]\.gitconfig
 ​개발자 PC라면 루트에 있는 Git 설정 파일은 보통 읽기 권한이 열려 있습니다. (사용자 이메일 주소 탈취 가능)
+
+
+​1. 윈도우 핵심 3대 이벤트 로그
+​모든 윈도우 시스템의 기본 로그 파일입니다.
+​보안 로그 (Security): 로그인/로그아웃 성공 및 실패, 권한 사용 기록 (사용자 계정 추적에 최적)
+​C:\Windows\System32\winevt\Logs\Security.evtx
+​시스템 로그 (System): 서비스 시작/중단, 드라이버 오류, 시스템 시간 변경 등
+​C:\Windows\System32\winevt\Logs\System.evtx
+​애플리케이션 로그 (Application): 설치된 프로그램들이 남기는 에러 및 정보
+​C:\Windows\System32\winevt\Logs\Application.evtx
+​2. 침투 테스트 시 유용한 추가 로그 (흔적 찾기)
+​사내 PC나 서버라면 아래 경로에서 더 구체적인 공격 경로를 찾을 수 있습니다.
+​PowerShell 실행 기록: (공격자가 입력한 명령어 확인 가능)
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-PowerShell%4Operational.evtx
+​RDP 원격 접속 기록: (어떤 IP에서 이 PC로 접속했는지 확인)
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-TerminalServices-LocalSessionManager%4Operational.evtx
+​USB 및 외부 장치 연결:
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-DriverFrameworks-UserMode%4Operational.evtx
+​3. 구형 윈도우/IIS 환경 (확장자 .evt)
+​만약 타겟 서버가 구형(Windows Server 2003 등)이라면 경로가 다를 수 있습니다.
+​C:\Windows\System32\config\AppEvent.Evt
+​C:\Windows\System32\config\SecEvent.Evt
+​C:\Windows\System32\config\SysEvent.Evt
