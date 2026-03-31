@@ -175,3 +175,34 @@ config.php / db_connect.php
 ../../../../../../ProgramData/AhnLab/SmartUpdate/Download/Log/
 ​구글 크롬 설치 정보:
 ../../../../../../ProgramData/Google/Chrome/External Extensions/
+
+
+
+
+​어떤 버전이 깔려 있고, 최근에 언제 업데이트되었는지 확인하여 보안 공백을 찾을 수 있습니다.
+​업데이트 요약 로그 (가장 추천):
+C:\ProgramData\AhnLab\SmartUpdate\Download\Log\Update.log
+C:\ProgramData\AhnLab\SmartUpdate\Download\Log\SUpdate.log
+​제품 설치 정보:
+C:\ProgramData\AhnLab\V3Mobile\ (모바일 연동 시)
+C:\ProgramData\AhnLab\Safe Transaction\st_update.log (뱅킹 보안 모듈 혼용 시)
+​2. V3 정책 및 설정 파일 (핵심 데이터)
+​V3가 어떤 파일을 검사 예외(Exception)로 두었는지, 혹은 실시간 감시가 켜져 있는지 확인하는 경로입니다.
+​공통 환경 설정:
+C:\ProgramData\AhnLab\V3Lite\Conf\v3lite.conf (개인용 Lite 버전일 경우)
+C:\ProgramData\AhnLab\V3IS90\Conf\v3is90.conf (기업용 IS 9.0 버전일 경우)
+​검사 예외 목록/검역소 정보:
+C:\ProgramData\AhnLab\V3IS90\Quarantine\ (검역소 폴더 - 파일 존재 여부 확인)
+​3. V3 엔진 및 실행 바이너리 (버전 확인용)
+​직접 실행 파일을 읽을 수는 없어도, 버전 정보를 담고 있는 리소스 파일을 노릴 수 있습니다.
+​64비트 설치 경로:
+C:\Program Files\AhnLab\V3IS90\V3SP.exe
+C:\Program Files\AhnLab\V3IS90\V3UI.exe
+​32비트(x86) 설치 경로:
+C:\Program Files (x86)\AhnLab\V3IS90\v3is90.info
+​4. 사내 보안 솔루션 (V3와 함께 깔리는 것들)
+​보통 V3가 있다면 기업용 자산관리 솔루션인 내PC지키미나 **AhnLab Policy Agent(APC)**가 함께 설치됩니다. 이 로그들이 더 치명적일 수 있습니다.
+​APC 에이전트 로그 (사내 관리 서버 IP 노출):
+C:\Program Files\AhnLab\APC\Agent\Log\ApcAgent.log
+​내PC지키미 점검 결과:
+C:\ProgramData\AhnLab\V3IS90\Report\SecurityCheck.xml
