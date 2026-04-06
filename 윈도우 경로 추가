@@ -1,0 +1,138 @@
+​1. IIS & Web Application (40개)
+​C:\inetpub\wwwroot\web.config
+​C:\inetpub\wwwroot\Global.asax
+​C:\inetpub\wwwroot\appsettings.json
+​C:\inetpub\wwwroot\ConnectionStrings.config
+​C:\inetpub\wwwroot\Web.Debug.config
+​C:\inetpub\wwwroot\Web.Release.config
+​C:\inetpub\wwwroot\bin\[AppName].dll
+​C:\inetpub\wwwroot\bin\[AppName].pdb
+​C:\inetpub\wwwroot\App_Code\Connection.cs
+​C:\inetpub\wwwroot\App_Data\database.mdf
+​C:\inetpub\wwwroot\App_Data\Settings.xml
+​C:\inetpub\wwwroot\index.aspx
+​C:\inetpub\wwwroot\login.aspx
+​C:\inetpub\wwwroot\admin\index.aspx
+​C:\inetpub\wwwroot\config.php
+​C:\inetpub\wwwroot\db.inc
+​C:\inetpub\wwwroot\WEB-INF\web.xml
+​C:\inetpub\wwwroot\WEB-INF\classes\application.properties
+​C:\inetpub\temp\apppools\[AppPoolName]\[AppPoolName].config
+​C:\inetpub\history\CFGHistory_0000000001\applicationHost.config
+​C:\Windows\System32\inetsrv\config\applicationHost.config
+​C:\Windows\System32\inetsrv\config\redirection.config
+​C:\Windows\System32\inetsrv\config\schema\ASPNET_schema.xml
+​C:\inetpub\logs\LogFiles\W3SVC1\u_ex260406.log
+​C:\inetpub\logs\LogFiles\W3SVC2\u_ex260406.log
+​C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Config\machine.config
+​C:\Windows\Microsoft.NET\Framework\v4.0.30319\Config\web.config
+​C:\Windows\System32\inetsrv\metabase.xml
+​C:\Windows\System32\inetsrv\mbschema.xml
+​C:\Windows\debug\WIA\wiatrace.log
+​C:\Windows\System32\LogFiles\HTTPERR\httperr1.log
+​C:\inetpub\wwwroot\robots.txt
+​C:\inetpub\wwwroot\sitemap.xml
+​C:\inetpub\wwwroot\.git\config
+​C:\inetpub\wwwroot\.svn\entries
+​C:\inetpub\wwwroot\.env
+​C:\inetpub\wwwroot\package.json
+​C:\inetpub\wwwroot\composer.json
+​C:\inetpub\wwwroot\web.config.bak
+​C:\inetpub\wwwroot\web.config.old
+​2. Oracle Database Client (15개)
+​C:\oracle\product\[Version]\client_1\Network\Admin\tnsnames.ora
+​C:\oracle\product\[Version]\client_1\Network\Admin\sqlnet.ora
+​C:\oracle\product\[Version]\client_1\Network\Admin\listener.ora
+​C:\Oracle\instantclient\network\admin\tnsnames.ora
+​C:\app\client\[USER]\product\[Version]\client_1\Network\Admin\tnsnames.ora
+​C:\app\Administrator\product\[Version]\dbhome_1\network\admin\tnsnames.ora
+​C:\Users\[USER]\.sqldeveloper\connections.xml
+​C:\Users\[USER]\AppData\Roaming\SQL Developer\system[Version]\o.sqldeveloper\history.xml
+​C:\app\[USER]\diag\rdbms\[DBName]\[SID]\trace\alert_[SID].log
+​C:\Oracle\product\[Version]\dbhome_1\database\PWD[SID].ora
+​C:\Oracle\product\[Version]\dbhome_1\dbs\spfile[SID].ora
+​C:\Users\[USER]\sqlnet.log
+​C:\app\oracle\product\[Version]\dbhome_1\inventory\ContentsXML\inventory.xml
+​C:\Oracle\product\[Version]\client_1\install\portlist.ini
+​C:\Users\[USER]\AppData\Local\Temp\oraInstall[Date]\installActions[Date].log
+​3. Windows System & Auth (20개)
+​C:\Windows\win.ini
+​C:\Windows\debug\NetSetup.log
+​C:\Windows\System32\drivers\etc\hosts
+​C:\Windows\Panther\unattend.xml
+​C:\Windows\Panther\Unattended.xml
+​C:\Windows\System32\sysprep\unattend.xml
+​C:\Windows\System32\config\SAM
+​C:\Windows\System32\config\SYSTEM
+​C:\Windows\System32\config\SECURITY
+​C:\Windows\System32\config\SOFTWARE
+​C:\Windows\System32\config\RegBack\SAM
+​C:\Windows\System32\config\RegBack\SYSTEM
+​C:\Windows\System32\config\RegBack\SECURITY
+​C:\Windows\System32\config\RegBack\SOFTWARE
+​C:\Windows\Repair\SAM
+​C:\Windows\Repair\SYSTEM
+​C:\Windows\System32\winevt\Logs\Security.evtx
+​C:\Windows\System32\winevt\Logs\System.evtx
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-PowerShell%4Operational.evtx
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx
+​4. Security Solution (V3 / AhnLab) (10개)
+​C:\ProgramData\AhnLab\SmartUpdate\Download\Log\Update.log
+​C:\ProgramData\AhnLab\SmartUpdate\Download\Log\SUpdate.log
+​C:\ProgramData\AhnLab\V3IS90\Conf\v3is90.conf
+​C:\ProgramData\AhnLab\V3IS90\Report\SecurityCheck.xml
+​C:\Program Files\AhnLab\APC\Agent\Log\ApcAgent.log
+​C:\Program Files (x86)\AhnLab\APC\Agent\Log\ApcAgent.log
+​C:\Program Files\AhnLab\V3IS90\v3is90.info
+​C:\ProgramData\AhnLab\Safe Transaction\st_update.log
+​C:\ProgramData\AhnLab\V3Lite\Conf\v3lite.conf
+​C:\ProgramData\AhnLab\V3IS90\Quarantine\
+​5. User Artifacts & AppData (15개)
+​C:\Users\Public\Desktop\desktop.ini
+​C:\Users\Public\Documents\desktop.ini
+​C:\Users\[USER]\.gitconfig
+​C:\Users\[USER]\.ssh\id_rsa
+​C:\Users\[USER]\.ssh\known_hosts
+​C:\Users\[USER]\.bash_history
+​C:\Users\[USER]\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+​C:\Users\[USER]\AppData\Local\Google\Chrome\User Data\Default\Login Data
+​C:\Users\[USER]\AppData\Local\Google\Chrome\User Data\Default\History
+​C:\Users\[USER]\AppData\Local\Google\Chrome\User Data\Default\Cookies
+​C:\Users\[USER]\AppData\Roaming\Notepad++/config.xml
+​C:\Users\[USER]\AppData\Roaming\Code\storage.json
+​C:\Users\[USER]\Documents\Default.rdp
+​C:\Users\[USER]\NTUSER.DAT
+​C:\Users\[USER]\AppData\Local\Temp\
+
+​6. 의심 프로세스 및 실행 파일 (20개)
+​C:\Users\Public\Downloads\*.exe (공용 폴더에 다운로드된 실행 파일)
+​C:\Users\[USER]\AppData\Local\Temp\*.ps1 (임시 폴더 내 파워쉘 스크립트)
+​C:\Windows\Temp\*.bat (시스템 임시 폴더 내 배치 파일)
+​C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\*.lnk (자동 실행 등록 항목)
+​C:\Windows\System32\Tasks\ (예약된 작업 스케줄러 XML 파일들)
+​C:\Windows\System32\drivers\*.sys (최근 설치된 드라이버 파일)
+​C:\Windows\System32\wbem\mof\*.mof (WMI 영구 등록 스크립트)
+​C:\Windows\System32\certutil.exe (파일 다운로드/인코딩에 악용되는 정상 도구)
+​C:\Windows\System32\bitsadmin.exe (백그라운드 파일 전송 도구)
+​C:\Windows\System32\werfault.exe (오류 보고를 가장한 프로세스 인젝션 대상)
+​C:\Windows\System32\scrcons.exe (WMI 이벤트 소비 프로세스)
+​C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+​C:\Windows\System32\cmd.exe
+​C:\Windows\System32\net.exe (계정 및 네트워크 설정 도구)
+​C:\Windows\System32\whoami.exe
+​C:\Windows\System32\nbtstat.exe
+​C:\Windows\System32\at.exe
+​C:\Windows\System32\schtasks.exe
+​C:\Windows\System32\reg.exe (레지스트리 조작 도구)
+​C:\Windows\System32\findstr.exe (파일 내 문자열 검색/탈취용)
+​7. 관리 도구 및 써드파티 앱 (10개)
+​C:\Program Files\Common Files\Microsoft Shared\
+​C:\Program Files (x86)\Common Files\
+​C:\Program Files\Java\jre\bin\java.exe
+​C:\Program Files\Git\etc\passwd
+​C:\Program Files\Git\etc\shadow
+​C:\Program Files\PuTTY\putty.exe
+​C:\Program Files\FileZilla FTP Client\sitemanager.xml (FTP 계정 정보)
+​C:\Program Files\WinRAR\WinRAR.exe
+​C:\Program Files\7-Zip\7z.exe
+​C:\Program Files (x86)\TeamViewer\TeamViewer.exe
