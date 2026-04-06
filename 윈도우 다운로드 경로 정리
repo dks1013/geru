@@ -1,0 +1,66 @@
+​1. IIS & Web Root (C:\inetpub\wwwroot)
+​C:\inetpub\wwwroot\web.config
+​C:\inetpub\wwwroot\Global.asax
+​C:\inetpub\wwwroot\appsettings.json
+​C:\inetpub\wwwroot\ConnectionStrings.config
+​C:\inetpub\wwwroot\bin\[AppName].dll
+​C:\inetpub\wwwroot\index.aspx
+​C:\inetpub\wwwroot\default.asp
+​C:\inetpub\wwwroot\main.php
+​C:\inetpub\logs\LogFiles\W3SVC1\u_ex260406.log (오늘 날짜 기준)
+​C:\Windows\System32\inetsrv\config\applicationHost.config
+​2. Windows System & Network
+​C:\Windows\win.ini
+​C:\Windows\debug\NetSetup.log
+​C:\Windows\System32\drivers\etc\hosts
+​C:\Windows\Panther\unattend.xml
+​C:\Windows\Panther\Unattended.xml
+​C:\Windows\System32\sysprep\unattend.xml
+​C:\Windows\Prefetch\
+​C:\Windows\setupact.log
+​C:\Windows\inf\setupapi.dev.log
+​C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Config\machine.config
+​3. Event Logs (.evtx)
+​C:\Windows\System32\winevt\Logs\Security.evtx
+​C:\Windows\System32\winevt\Logs\System.evtx
+​C:\Windows\System32\winevt\Logs\Application.evtx
+​C:\Windows\System32\winevt\Logs\Microsoft-Windows-PowerShell%4Operational.evtx
+​4. Registry & Credentials (SAM)
+​C:\Windows\System32\config\SAM
+​C:\Windows\System32\config\SYSTEM
+​C:\Windows\System32\config\SECURITY
+​C:\Windows\System32\config\RegBack\SAM
+​C:\Windows\System32\config\RegBack\SYSTEM
+​C:\Windows\System32\config\RegBack\SECURITY
+​5. AhnLab V3 & Security Solution
+​C:\ProgramData\AhnLab\SmartUpdate\Download\Log\Update.log
+​C:\ProgramData\AhnLab\SmartUpdate\Download\Log\SUpdate.log
+​C:\ProgramData\AhnLab\V3IS90\Conf\v3is90.conf
+​C:\ProgramData\AhnLab\V3Lite\Conf\v3lite.conf
+​C:\ProgramData\AhnLab\V3IS90\Report\SecurityCheck.xml
+​C:\Program Files\AhnLab\APC\Agent\Log\ApcAgent.log
+​C:\Program Files\AhnLab\V3IS90\V3SP.exe
+​C:\Program Files (x86)\AhnLab\V3IS90\v3is90.info
+​6. User Profiles & History
+​C:\Users\Public\Desktop\desktop.ini
+​C:\Users\Public\Documents\desktop.ini
+​C:\Users\[USER]\desktop.ini
+​C:\Users\[USER]\NTUSER.DAT
+​C:\Users\[USER]\.gitconfig
+​C:\Users\[USER]\.bash_history
+​C:\Users\[USER]\.python_history
+​C:\Users\[USER]\.ssh\known_hosts
+​C:\Users\[USER]\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+​C:\Users\[USER]\AppData\Local\Google\Chrome\User Data\Last Version
+​C:\Users\[USER]\AppData\Local\Google\Chrome\User Data\Default\Login Data
+​C:\Users\[USER]\AppData\Roaming\Notepad++/config.xml
+​C:\Users\[USER]\AppData\Roaming\Code\storage.json
+​C:\Users\[USER]\Documents\Default.rdp
+​7. Application Data & Packages
+​C:\ProgramData\
+​C:\Program Files\
+​C:\Program Files (x86)\
+​C:\Users\[USER]\AppData\Roaming\npm\node_modules\
+​C:\Users\[USER]\AppData\Local\Programs\Python\Python3x\Lib\site-packages\
+​C:\Users\[USER]\.m2\repository\
+​C:\Users\[USER]\.gradle\caches\
