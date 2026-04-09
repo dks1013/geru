@@ -1,0 +1,81 @@
+// CryptUnprotectData 후킹: 로컬에 저장된 암호화된 자격 증명을 풀 때 호출됨
+const crypt32 = Module.load('crypt32.dll');
+const cryptUnprotectData = crypt32.getExportByName('CryptUnprotectData');
+
+Interceptor.attach(cryptUnprotectData, {
+    onEnter: function (args) {
+        // args[0]은 DATA_BLOB 구조체 포인터 (입력: 암호화된 데이터)
+        this.dataOutPtr = args[3]; // 출력될 평문 데이터 구조체 주소 저장
+        console.log("[+] CryptUnprotectData 호출됨");
+    },
+    onLeave: function (retval) {
+        if (retval.toInt32() !== 0) {
+            // DATA_BLOB 구조체: { cbData (4byte), pbData (pointer) }
+            const cbData = Memory.readU32(this.dataOutPtr);
+            const pbData = Memory.readPointer(this.dataOutPtr.add(Process.pointerSize));
+            
+            console.log("[!] 복호화된 데이터 크기:", cbData);
+            console.log("[!] 평문 데이터(Hex):\n" + hexdump(pbData, { length: cbData, ansi: true }));
+            console.log("[!] 평문 데이터(String):", Memory.readUtf16String(pbData, cbData / 2));
+        }
+    }
+});
+
+
+
+function scanCredential(searchString) {
+    const pattern = searchString; // 예: "MySecretPassword123!"
+    
+    // 읽기 권한이 있는 모든 메모리 영역 스캔
+    Process.enumerateRanges('r--').forEach(function (range) {
+        Memory.scan(range.base, range.size, strToHex(pattern), {
+            onMatch: function (address, size) {
+                console.log("[!] 메모리에서 크리덴셜 패턴 발견:", address);
+                console.log(hexdump(address, { offset: 0, length: 64, header: true, ansi: true }));
+            },
+            onComplete: function () {
+                // 스캔 완료
+            }
+        });
+    });
+}
+
+// 헬퍼 함수: 문자열을 헥사 패턴으로 변환
+function strToHex(str) {
+    return str.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+}
+
+// 실행 예시: 로그인 후 호출하여 잔류 확인
+// scanCredential("사용자비밀번호");
+
+
+
+// sapcrypto.dll이 로드되었는지 확인 후 후킹
+const moduleName = "sapcrypto.dll";
+const sapCrypto = Process.findModuleByName(moduleName);
+
+if (sapCrypto) {
+    console.log("[+] " + moduleName + " 기반 주소:", sapCrypto.base);
+    
+    // 자격 증명 관련 유력 함수들 (심볼이 있을 경우)
+    const targets = [
+        "SncGetCredentials",
+        "SncDecodeToken",
+        "SncSetAuthToken"
+    ];
+
+    targets.forEach(sym => {
+        const addr = Module.findExportByName(moduleName, sym);
+        if (addr) {
+            Interceptor.attach(addr, {
+                onEnter: function (args) {
+                    console.log("[*] 후킹 성공: " + sym);
+                    // 인자값 분석 (x64이므로 RCX, RDX 순서)
+                    console.log(hexdump(args[0], { length: 32 })); 
+                }
+            });
+        }
+    });
+}
+
+
