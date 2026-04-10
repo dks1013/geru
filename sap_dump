@@ -1,8 +1,8 @@
 /*
- * SAP GUI 7.50: 비밀번호 소멸/변조 추적 스크립트
+ * 로그인 완료 후 '잔상'을 찾기 위한 무한 재스캔 스크립트
  */
 
-const targetPass = "YourPassword123!"; // 입력할 비번
+const targetPass = "YourPassword123!"; // 테스트 비번
 
 function getPattern(p) {
     return p.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0') + " 00").join(' ');
@@ -10,32 +10,23 @@ function getPattern(p) {
 
 const pattern = getPattern(targetPass);
 
+// 5초마다 프로세스 전체를 완전히 새로 뒤집어서 찾습니다.
 setInterval(() => {
+    console.log("[*] 전체 메모리 재스캔 중...");
     Process.enumerateRanges('rw-').forEach(range => {
         Memory.scan(range.base, range.size, pattern, {
             onMatch: function (address, size) {
-                console.log(`\n[!] 비번 발견: ${address}. 변조 감시 시작...`);
-
-                // 해당 주소에 데이터가 바뀌는지 감시 (Write Access)
-                MemoryAccessMonitor.enable([{ base: address, size: size }], {
-                    onAccess: function (details) {
-                        if (details.operation === 'write') {
-                            console.log(`\n[!] 누군가 비번을 수정/삭제함!`);
-                            console.log(`    위치: ${details.from}`);
-                            
-                            // 수정된 후의 데이터를 덤프 (0으로 밀었는지 확인)
-                            console.log("    수정 후 데이터:");
-                            console.log(hexdump(details.address, { length: 16 }));
-
-                            const mod = Process.findModuleByAddress(details.from);
-                            if (mod) {
-                                console.log(`    범인: ${mod.name} + ${details.from.sub(mod.base)}`);
-                            }
-                        }
-                    }
-                });
+                console.log(`\n[★] 잔상 발견! 로그인 후에도 남아있음: ${address}`);
+                console.log(hexdump(address, { length: 32, ansi: true }));
+                
+                const mod = Process.findModuleByAddress(address);
+                if (mod) {
+                    console.log(`위치: ${mod.name} + ${address.sub(mod.base)}`);
+                } else {
+                    console.log(`위치: Heap 영역 (해제되지 않은 객체)`);
+                }
             },
             onComplete: function () {}
         });
     });
-}, 2000);
+}, 5000);
