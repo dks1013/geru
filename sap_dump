@@ -1,45 +1,41 @@
 /*
- * SAP GUI 7.50 강제 역추적 스크립트
- * 접근을 기다리지 않고, 발견 즉시 주변 모듈을 탐색합니다.
+ * SAP GUI 7.50: 비밀번호 소멸/변조 추적 스크립트
  */
 
-const targetPass = "YourPassword123!"; // 분석할 비밀번호
+const targetPass = "YourPassword123!"; // 입력할 비번
 
-function getPattern(str) {
-    return str.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0') + " 00").join(' ');
+function getPattern(p) {
+    return p.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0') + " 00").join(' ');
 }
 
 const pattern = getPattern(targetPass);
-console.log("[*] 강제 추적 시작... 패턴: " + pattern);
 
 setInterval(() => {
-    Process.enumerateRanges('rw-').forEach(function (range) {
+    Process.enumerateRanges('rw-').forEach(range => {
         Memory.scan(range.base, range.size, pattern, {
             onMatch: function (address, size) {
-                console.log(`\n[!] 비번 상주 확인! 주소: ${address}`);
-                
-                // 1. 현재 주소가 어떤 모듈(DLL) 영역에 포함되어 있는지 확인
-                const module = Process.findModuleByAddress(address);
-                if (module) {
-                    const offset = address.sub(module.base);
-                    console.log(`[★] 데이터 상주 위치: ${module.name} + ${offset} (Data Section)`);
-                } else {
-                    console.log(`[★] 데이터 상주 위치: Heap (동적 할당 영역)`);
-                }
+                console.log(`\n[!] 비번 발견: ${address}. 변조 감시 시작...`);
 
-                // 2. 16진수 덤프로 데이터 박제
-                console.log(hexdump(address, { length: 48, ansi: true }));
+                // 해당 주소에 데이터가 바뀌는지 감시 (Write Access)
+                MemoryAccessMonitor.enable([{ base: address, size: size }], {
+                    onAccess: function (details) {
+                        if (details.operation === 'write') {
+                            console.log(`\n[!] 누군가 비번을 수정/삭제함!`);
+                            console.log(`    위치: ${details.from}`);
+                            
+                            // 수정된 후의 데이터를 덤프 (0으로 밀었는지 확인)
+                            console.log("    수정 후 데이터:");
+                            console.log(hexdump(details.address, { length: 16 }));
 
-                // 3. (중요) 이 주소를 가리키고 있는 포인터가 있는지 역스캔
-                // 비번 주소를 담고 있는 '변수'의 위치를 찾는 과정입니다.
-                const addrPtr = strToPtrHex(address.toString());
-                // 이 부분은 부하가 걸릴 수 있어 필요시에만 수행
+                            const mod = Process.findModuleByAddress(details.from);
+                            if (mod) {
+                                console.log(`    범인: ${mod.name} + ${details.from.sub(mod.base)}`);
+                            }
+                        }
+                    }
+                });
             },
             onComplete: function () {}
         });
     });
-}, 3000);
-
-function strToPtrHex(address) {
-    // 주소값을 리틀 엔디언 형태의 바이트 패턴으로 변환 (생략 가능)
-}
+}, 2000);
