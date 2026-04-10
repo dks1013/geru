@@ -1,49 +1,45 @@
 /*
- * SAP GUI 7.50 TypeError 수정 버전
- * 주소 발견 -> 감시 장치 부착 -> 접근 시 DLL/Offset 계산
+ * SAP GUI 7.50 강제 역추적 스크립트
+ * 접근을 기다리지 않고, 발견 즉시 주변 모듈을 탐색합니다.
  */
 
-const targetPass = "YourPassword123!"; // 분석할 비밀번호 입력
+const targetPass = "YourPassword123!"; // 분석할 비밀번호
 
 function getPattern(str) {
-    // UTF-16LE 패턴 생성
     return str.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0') + " 00").join(' ');
 }
 
 const pattern = getPattern(targetPass);
-console.log("[*] 스캔 시작... 패턴: " + pattern);
+console.log("[*] 강제 추적 시작... 패턴: " + pattern);
 
-// 메모리 스캔 및 모니터링 자동화
 setInterval(() => {
     Process.enumerateRanges('rw-').forEach(function (range) {
         Memory.scan(range.base, range.size, pattern, {
             onMatch: function (address, size) {
-                console.log(`\n[!] 비번 발견! 주소: ${address}`);
+                console.log(`\n[!] 비번 상주 확인! 주소: ${address}`);
                 
-                // 해당 주소를 읽는 놈을 잡기 위해 모니터 활성화
-                MemoryAccessMonitor.enable([{ base: address, size: size }], {
-                    onAccess: function (details) {
-                        console.log(`\n[!] 데이터 접근 감지! (From: ${details.from})`);
-                        
-                        // 호출한 지점의 모듈 정보 계산
-                        const module = Process.findModuleByAddress(details.from);
-                        if (module) {
-                            const offset = details.from.sub(module.base);
-                            console.log(`[★] 범인 검거: ${module.name} + ${offset}`);
-                        }
+                // 1. 현재 주소가 어떤 모듈(DLL) 영역에 포함되어 있는지 확인
+                const module = Process.findModuleByAddress(address);
+                if (module) {
+                    const offset = address.sub(module.base);
+                    console.log(`[★] 데이터 상주 위치: ${module.name} + ${offset} (Data Section)`);
+                } else {
+                    console.log(`[★] 데이터 상주 위치: Heap (동적 할당 영역)`);
+                }
 
-                        // Backtrace 출력 (context는 details.context 사용)
-                        console.log("    [Backtrace]");
-                        Thread.backtrace(details.context, Backtrace.ACCURATE)
-                              .map(DebugSymbol.fromAddress)
-                              .forEach(line => console.log("    " + line));
-                        
-                        // 한 번 잡으면 부하 방지를 위해 일시 정지
-                        MemoryAccessMonitor.disable();
-                    }
-                });
+                // 2. 16진수 덤프로 데이터 박제
+                console.log(hexdump(address, { length: 48, ansi: true }));
+
+                // 3. (중요) 이 주소를 가리키고 있는 포인터가 있는지 역스캔
+                // 비번 주소를 담고 있는 '변수'의 위치를 찾는 과정입니다.
+                const addrPtr = strToPtrHex(address.toString());
+                // 이 부분은 부하가 걸릴 수 있어 필요시에만 수행
             },
             onComplete: function () {}
         });
     });
-}, 2000);
+}, 3000);
+
+function strToPtrHex(address) {
+    // 주소값을 리틀 엔디언 형태의 바이트 패턴으로 변환 (생략 가능)
+}
