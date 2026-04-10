@@ -1,81 +1,56 @@
-// 분석할 비밀번호 (테스트용으로 입력할 값)
-const targetCred = "YourPassword123!"; 
+/*
+ * SAP GUI 7.50 Credential Trace Script
+ * Target Process: saplogon.exe
+ */
+
+const targetPassword = "YourPassword123!"; // 테스트 시 입력할 비밀번호로 수정하세요.
 
 function hexEncode(str) {
     // UTF-16LE 대응 (SAP 표준)
     return str.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0') + " 00").join(' ');
 }
 
-const pattern = hexEncode(targetCred);
-console.log("[*] 감시 패턴:", pattern);
+const pattern = hexEncode(targetPassword);
+console.log("[*] 감시 시작 - 타겟 패턴:", pattern);
 
-// 1. 메모리에서 해당 패턴의 위치를 먼저 찾음
-Process.enumerateRanges('rw-').forEach(function (range) {
-    Memory.scan(range.base, range.size, pattern, {
-        onMatch: function (address, size) {
-            console.log("[!] Credential 발견 주소:", address);
+// 1. 실시간 메모리 스캔 루프 (비번이 메모리에 올라오는 순간 포착)
+const scanInterval = setInterval(() => {
+    Process.enumerateRanges('rw-').forEach(function (range) {
+        Memory.scan(range.base, range.size, pattern, {
+            onMatch: function (address, size) {
+                console.log("\n[!] Credential 발견! 주소:", address);
+                
+                // 발견된 주소를 누가 읽거나 쓰는지 실시간 감시 (Hardware BP 역할)
+                MemoryAccessMonitor.enable([{
+                    base: address,
+                    size: size
+                }], {
+                    onAccess: function (details) {
+                        console.log(`\n[!] 데이터 접근 감지!`);
+                        console.log(`    연산: ${details.operation} | 위치: ${details.from}`);
+                        
+                        // 접근한 시점의 모듈 정보 확인
+                        const module = Process.findModuleByAddress(details.from);
+                        if (module) {
+                            console.log(`    모듈: ${module.name} (Offset: ${details.from.sub(module.base)})`);
+                        }
 
-            // 2. 발견된 주소에 하드웨어 중단점(Access Watch) 설정
-            // 이 주소를 읽거나 쓰는 모든 놈들을 출력
-            Process.setExceptionHandler(function(details) {
-                console.log("[*] 예외 발생 (Access Trace):", details.address);
-                return false;
-            });
-
-            // 프리다의 'MemoryAccessMonitor'를 사용하여 해당 지점 감시
-            MemoryAccessMonitor.enable([{
-                base: address,
-                size: size
-            }], {
-                onAccess: function (details) {
-                    console.log("[!] 접근 감지!");
-                    console.log("    어디서: " + details.from); // 호출한 코드 주소
-                    console.log("    어떤 연산: " + details.operation);
-                    console.log("    Call Stack:\n" + Thread.backtrace(details.context, Backtrace.ACCURATE).map(DebugSymbol.fromAddress).join("\n"));
-                }
-            });
-        },
-        onComplete: function () { console.log("[*] 스캔 완료."); }
-    });
-});
-
-
-const APIs = [
-    ['kernel32.dll', 'lstrcpyW'],
-    ['kernel32.dll', 'lstrcpynW'],
-    ['msvcrt.dll', 'memcpy'],
-    ['msvcrt.dll', 'wcscpy']
-];
-
-APIs.forEach(api => {
-    const addr = Module.findExportByName(api[0], api[1]);
-    if (addr) {
-        Interceptor.attach(addr, {
-            onEnter: function (args) {
-                try {
-                    // 보통 두 번째 인자가 Source (복사할 대상)
-                    const data = Memory.readUtf16String(args[1]);
-                    if (data && data.indexOf(targetCred) !== -1) {
-                        console.log(`\n[!] Credential 복사 포착! [API: ${api[1]}]`);
-                        console.log(`[+] Source: ${args[1]} | Data: ${data}`);
-                        console.log(`[+] Backtrace:\n` + Thread.backtrace(this.context, Backtrace.ACCURATE).map(DebugSymbol.fromAddress).join("\n"));
+                        // Call Stack 출력 (x32dbg에서 확인할 지점)
+                        console.log("    [Backtrace]\n" + 
+                            Thread.backtrace(details.context, Backtrace.ACCURATE)
+                            .map(DebugSymbol.fromAddress).join("\n"));
+                        
+                        // 감시 종료 (한 번 잡으면 부하 방지를 위해 멈춤)
+                        MemoryAccessMonitor.disable();
+                        clearInterval(scanInterval);
                     }
-                } catch (e) {}
-            }
+                });
+            },
+            onComplete: function () {}
         });
-    }
-});
+    });
+}, 1000);
 
-
-// 모든 읽기/쓰기 가능 영역을 덤프하여 파일로 저장하는 로직 (개념)
-Process.enumerateRanges('rw-').forEach(function (range) {
-    try {
-        const buffer = Memory.readByteArray(range.base, range.size);
-        // 이 데이터를 파일로 내보내거나, 바로 문자열 검색
-        // 예: 만약 내 비번이 "MySecret123!" 라면
-        const memString = Memory.readUtf16String(range.base, range.size / 2);
-        if (memString && memString.includes("MySecret123!")) {
-             console.log("[!] 발견! 주소: " + range.base);
-        }
-    } catch (e) {}
-});
+// 2. 공용 문자열 복사 API 모니터링 (백업용)
+const copyApi = Module.findExportByName("kernel32.dll", "lstrcpyW");
+if
