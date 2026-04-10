@@ -1,71 +1,44 @@
 /*
- * SAP GUI 7.50 Credential Trace Script
- * Target Process: saplogon.exe
+ * SAP GUI 7.50 Dynamic Address Tracker
+ * 주소가 바뀌어도 호출한 DLL의 위치를 정확히 찾아줌
  */
 
-const targetPassword = "YourPassword123!"; // 테스트 시 입력할 비밀번호로 수정하세요.
+const targetPass = "YourPassword123!"; // 분석할 비밀번호 입력
 
-function hexEncode(str) {
-    // UTF-16LE 대응 (SAP 표준)
+function getPattern(str) {
     return str.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0') + " 00").join(' ');
 }
 
-const pattern = hexEncode(targetPassword);
-console.log("[*] 감시 시작 - 타겟 패턴:", pattern);
+const pattern = getPattern(targetPass);
+console.log("[*] 스캔 시작... 패턴:", pattern);
 
-// 1. 실시간 메모리 스캔 루프 (비번이 메모리에 올라오는 순간 포착)
-const scanInterval = setInterval(() => {
+// 1초마다 메모리를 훑어서 비번 위치와 호출지를 찾음
+setInterval(() => {
     Process.enumerateRanges('rw-').forEach(function (range) {
         Memory.scan(range.base, range.size, pattern, {
             onMatch: function (address, size) {
-                console.log("\n[!] Credential 발견! 주소:", address);
-                
-                // 발견된 주소를 누가 읽거나 쓰는지 실시간 감시 (Hardware BP 역할)
-                MemoryAccessMonitor.enable([{
-                    base: address,
-                    size: size
-                }], {
-                    onAccess: function (details) {
-                        console.log(`\n[!] 데이터 접근 감지!`);
-                        console.log(`    연산: ${details.operation} | 위치: ${details.from}`);
-                        
-                        // 접근한 시점의 모듈 정보 확인
-                        const module = Process.findModuleByAddress(details.from);
-                        if (module) {
-                            console.log(`    모듈: ${module.name} (Offset: ${details.from.sub(module.base)})`);
-                        }
+                // 1. 현재 비번이 저장된 실시간 주소 출력
+                console.log(`\n[!] 비번 발견! 실시간 주소: ${address}`);
 
-                        // Call Stack 출력 (x32dbg에서 확인할 지점)
-                        console.log("    [Backtrace]\n" + 
-                            Thread.backtrace(details.context, Backtrace.ACCURATE)
-                            .map(DebugSymbol.fromAddress).join("\n"));
-                        
-                        // 감시 종료 (한 번 잡으면 부하 방지를 위해 멈춤)
-                        MemoryAccessMonitor.disable();
-                        clearInterval(scanInterval);
+                // 2. 해당 주소를 참조하는 코드(Backtrace) 분석
+                const bt = Thread.backtrace(this.context, Backtrace.ACCURATE);
+                
+                bt.forEach((frame, index) => {
+                    // 주소를 기반으로 모듈 정보(DLL 이름, 베이스 주소) 찾기
+                    const module = Process.findModuleByAddress(frame);
+                    if (module) {
+                        // 중요: 주소가 아닌 '모듈명 + 오프셋' 계산
+                        const offset = frame.sub(module.base);
+                        console.log(`    [Layer ${index}] ${module.name} + ${offset}`);
+                    } else {
+                        console.log(`    [Layer ${index}] Unknown Memory: ${frame}`);
                     }
                 });
+
+                // 3. 16진수 덤프로 데이터 확인
+                console.log(hexdump(address, { length: 32, ansi: true }));
             },
             onComplete: function () {}
         });
     });
-}, 1000);
-
-// 2. 공용 문자열 복사 API 모니터링 (백업용)
-const copyApi = Module.findExportByName("kernel32.dll", "lstrcpyW");
-if (copyApi) {
-    Interceptor.attach(copyApi, {
-        onEnter: function (args) {
-            try {
-                const src = Memory.readUtf16String(args[1]);
-                if (src && src.includes(targetPassword)) {
-                    console.log("\n[!] API를 통한 Credential 복사 포착: lstrcpyW");
-                    console.log("    Source Data:", src);
-                    console.log("    Call Stack:\n" + 
-                        Thread.backtrace(this.context, Backtrace.ACCURATE)
-                        .map(DebugSymbol.fromAddress).join("\n"));
-                }
-            } catch (e) {}
-        }
-    });
-}
+}, 2000); // 2초 간격 스캔
