@@ -1,0 +1,22 @@
+Java.perform(function () {
+    // 1. System.exit 후킹
+    var System = Java.use("java.lang.System");
+    System.exit.implementation = function (code) {
+        console.log("[+] Blocked System.exit(" + code + ")");
+        // 리턴값을 주지 않음으로써 종료 로직이 진행되지 않도록 함
+    };
+
+    // 2. Process.killProcess 후킹
+    var Process = Java.use("android.os.Process");
+    Process.killProcess.implementation = function (pid) {
+        console.log("[+] Blocked Process.killProcess(" + pid + ")");
+        // 여기서 return을 해주지 않으면 해당 로직이 실행되지 않음
+    };
+
+    // 3. Activity.finish 후킹
+    // 주의: UI 흐름상 문제가 발생할 수 있으므로 상황에 따라 적용 필요
+    var Activity = Java.use("android.app.Activity");
+    Activity.finish.implementation = function () {
+        console.log("[+] Blocked Activity.finish()");
+    };
+});
