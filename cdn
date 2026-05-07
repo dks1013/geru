@@ -1,27 +1,38 @@
 import os
 import requests
+import filetype
 
-# 저장 폴더 생성
 save_dir = "downloads"
 os.makedirs(save_dir, exist_ok=True)
 
-# 기본 URL
-base_url = "http://127.0.0.1/a/{}"
+base_url = "http://127.0.0.1/a"
 
-# 1 ~ 30 다운로드
 for i in range(1, 31):
-    url = base_url.format(i)
+    params = {
+        "id": i
+    }
 
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(base_url, params=params, timeout=10)
 
         if response.status_code == 200:
-            file_path = os.path.join(save_dir, f"{i}")
+
+            data = response.content
+
+            # 파일 시그니처 기반 확장자 탐지
+            kind = filetype.guess(data)
+
+            if kind:
+                ext = "." + kind.extension
+            else:
+                ext = ".bin"
+
+            file_path = os.path.join(save_dir, f"{i}{ext}")
 
             with open(file_path, "wb") as f:
-                f.write(response.content)
+                f.write(data)
 
-            print(f"[+] 다운로드 완료: {i}")
+            print(f"[+] 저장 완료: {file_path}")
 
         else:
             print(f"[-] 실패 ({i}) : HTTP {response.status_code}")
