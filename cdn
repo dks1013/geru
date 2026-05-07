@@ -1,0 +1,30 @@
+import os
+import requests
+
+# 저장 폴더 생성
+save_dir = "downloads"
+os.makedirs(save_dir, exist_ok=True)
+
+# 기본 URL
+base_url = "http://127.0.0.1/a/{}"
+
+# 1 ~ 30 다운로드
+for i in range(1, 31):
+    url = base_url.format(i)
+
+    try:
+        response = requests.get(url, timeout=10)
+
+        if response.status_code == 200:
+            file_path = os.path.join(save_dir, f"{i}")
+
+            with open(file_path, "wb") as f:
+                f.write(response.content)
+
+            print(f"[+] 다운로드 완료: {i}")
+
+        else:
+            print(f"[-] 실패 ({i}) : HTTP {response.status_code}")
+
+    except Exception as e:
+        print(f"[!] 오류 ({i}) : {e}")
