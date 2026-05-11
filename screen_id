@@ -1,0 +1,12 @@
+import re
+
+data = '''
+엄청 더러운 문자열 ...
+"SCREEN_ID":"esh"
+다른 데이터 ...
+'''
+
+# SCREEN_ID 값 추출
+matches = re.findall(r'"SCREEN_ID"\s*:\s*"([^"]+)"', data)
+
+print(matches)
