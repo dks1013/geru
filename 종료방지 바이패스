@@ -1,0 +1,45 @@
+/*
+ * Anti-Exit & Kill Process Bypass
+ */
+
+Java.perform(function () {
+    console.log("[*] Anti-Exit script loaded...");
+
+    // 1. Java 레이어: System.exit(0) 무력화
+    const System = Java.use("java.lang.System");
+    System.exit.implementation = function (code) {
+        console.log("[!] System.exit(" + code + ") detected and blocked!");
+        // 아무것도 하지 않음 (종료 방지)
+    };
+
+    // 2. Java 레이어: android.os.Process.killProcess(pid) 무력화
+    const Process = Java.use("android.os.Process");
+    Process.killProcess.implementation = function (pid) {
+        console.log("[!] Process.killProcess(" + pid + ") detected and blocked!");
+        // 아무것도 하지 않음
+    };
+
+    // 3. Java 레이어: 현재 액티비티 finish() 무력화 (선택 사항)
+    // 앱이 종료되진 않지만 화면이 닫히는 것을 방지하고 싶을 때 사용
+    const Activity = Java.use("android.app.Activity");
+    Activity.finish.overload().implementation = function () {
+        console.log("[!] Activity.finish() blocked!");
+    };
+});
+
+// 4. Native 레이어: libc.so의 exit, kill 함수 무력화
+Interceptor.attach(Module.findExportByName("libc.so", "exit"), {
+    onEnter: function (args) {
+        console.log("[!] Native exit() called. Replacing with no-op.");
+        // 시스템 호출을 가로채거나 리턴값을 조작하여 종료를 방지
+        // Native exit은 가로채기 까다로울 수 있어 주로 스레드를 멈추거나 리턴 처리
+    }
+});
+
+Interceptor.attach(Module.findExportByName("libc.so", "kill"), {
+    onEnter: function (args) {
+        const sig = args[1].toInt32();
+        console.log("[!] Native kill() called with signal: " + sig);
+        // SIGKILL(9) 또는 SIGTERM(15) 등이 올 경우 무시하도록 설정 가능
+    }
+});
