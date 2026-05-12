@@ -1,0 +1,8 @@
+// 예: File 객체 생성 시 스택 트래스 출력
+Java.use("java.io.File").$init.overload('java.lang.String').implementation = function(path) {
+    if (path.includes("su")) {
+        console.log("Detection path access: " + path);
+        console.log(Java.use("android.util.Log").getStackTraceString(Java.use("java.lang.Exception").$new()));
+    }
+    return this.$init(path);
+};
