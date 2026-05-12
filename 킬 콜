@@ -1,0 +1,6 @@
+const killPtr = Module.findExportByName(null, 'kill');
+Interceptor.attach(killPtr, {
+    onEnter: function(args) {
+        console.log('kill called from:\n' + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join('\n'));
+    }
+});
