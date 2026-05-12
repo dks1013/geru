@@ -1,0 +1,57 @@
+/*
+ * Frida Root Detection Bypass Script
+ */
+
+Java.perform(function () {
+    const RootPackages = [
+        "com.noshufou.android.su",
+        "com.thirdparty.superuser",
+        "eu.chainfire.supersu",
+        "com.koushikdutta.superuser",
+        "com.zacharee1.systemuituner"
+    ];
+
+    const RootBinaries = [
+        "/system/bin/su",
+        "/system/xbin/su",
+        "/sbin/su",
+        "/system/sd/xbin/su",
+        "/system/bin/failsafe/su",
+        "/data/local/xbin/su",
+        "/data/local/bin/su",
+        "/data/local/su"
+    ];
+
+    // 1. 파일 존재 여부 탐지 바이패스 (File.exists)
+    const File = Java.use("java.io.File");
+    File.exists.implementation = function () {
+        let name = this.getName();
+        let path = this.getAbsolutePath();
+
+        if (RootBinaries.includes(path) || RootPackages.includes(name)) {
+            console.log("[*] Bypass File.exists(): " + path);
+            return false;
+        }
+        return this.exists();
+    };
+
+    // 2. Runtime.exec()를 통한 'su' 명령어 실행 차단
+    const Runtime = Java.use("java.lang.Runtime");
+    Runtime.exec.overload('java.lang.String').implementation = function (cmd) {
+        if (cmd.includes("su") || cmd.includes("which su")) {
+            console.log("[*] Bypass Runtime.exec(): " + cmd);
+            return this.exec("non_existent_command");
+        }
+        return this.exec(cmd);
+    };
+
+    // 3. 시스템 프로퍼티 탐지 (ro.debuggable, ro.secure 등)
+    const SystemProperties = Java.use("android.os.SystemProperties");
+    SystemProperties.get.overload('java.lang.String').implementation = function (key) {
+        if (key === "ro.debuggable") return "0";
+        if (key === "ro.secure") return "1";
+        return this.get(key);
+    };
+
+    console.log("\n[+] Root Detection Bypass Loaded!");
+});
