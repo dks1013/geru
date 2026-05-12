@@ -1,45 +1,86 @@
 /*
- * Anti-Exit & Kill Process Bypass
+ * Comprehensive Bypass Script (Anti-Exit + Root Detection)
  */
 
 Java.perform(function () {
-    console.log("[*] Anti-Exit script loaded...");
+    console.log("\n[+] Total Bypass Script Started...");
 
-    // 1. Java 레이어: System.exit(0) 무력화
+    // --- 1. Java 계층 종료 함수 무력화 ---
     const System = Java.use("java.lang.System");
-    System.exit.implementation = function (code) {
-        console.log("[!] System.exit(" + code + ") detected and blocked!");
-        // 아무것도 하지 않음 (종료 방지)
-    };
-
-    // 2. Java 레이어: android.os.Process.killProcess(pid) 무력화
     const Process = Java.use("android.os.Process");
-    Process.killProcess.implementation = function (pid) {
-        console.log("[!] Process.killProcess(" + pid + ") detected and blocked!");
-        // 아무것도 하지 않음
-    };
-
-    // 3. Java 레이어: 현재 액티비티 finish() 무력화 (선택 사항)
-    // 앱이 종료되진 않지만 화면이 닫히는 것을 방지하고 싶을 때 사용
     const Activity = Java.use("android.app.Activity");
-    Activity.finish.overload().implementation = function () {
-        console.log("[!] Activity.finish() blocked!");
+
+    System.exit.implementation = function (code) {
+        console.log("[!] Blocked: System.exit(" + code + ")");
     };
-});
 
-// 4. Native 레이어: libc.so의 exit, kill 함수 무력화
-Interceptor.attach(Module.findExportByName("libc.so", "exit"), {
-    onEnter: function (args) {
-        console.log("[!] Native exit() called. Replacing with no-op.");
-        // 시스템 호출을 가로채거나 리턴값을 조작하여 종료를 방지
-        // Native exit은 가로채기 까다로울 수 있어 주로 스레드를 멈추거나 리턴 처리
-    }
-});
+    Process.killProcess.implementation = function (pid) {
+        console.log("[!] Blocked: killProcess(" + pid + ")");
+    };
 
-Interceptor.attach(Module.findExportByName("libc.so", "kill"), {
-    onEnter: function (args) {
-        const sig = args[1].toInt32();
-        console.log("[!] Native kill() called with signal: " + sig);
-        // SIGKILL(9) 또는 SIGTERM(15) 등이 올 경우 무시하도록 설정 가능
-    }
+    Activity.finish.overload().implementation = function () {
+        console.log("[!] Blocked: Activity.finish()");
+    };
+
+    Activity.finishAffinity.implementation = function () {
+        console.log("[!] Blocked: finishAffinity()");
+    };
+
+    // --- 2. 루팅/디버깅 탐지 파일 및 프로퍼티 우회 ---
+    const File = Java.use("java.io.File");
+    const RootItems = ["su", "magisk", "busybox", "Superuser.apk", "daemonsu"];
+    
+    File.exists.implementation = function () {
+        let path = this.getAbsolutePath();
+        for (let item of RootItems) {
+            if (path.indexOf(item) > -1) {
+                console.log("[*] Hiding file: " + path);
+                return false;
+            }
+        }
+        return this.exists();
+    };
+
+    const SystemProperties = Java.use("android.os.SystemProperties");
+    SystemProperties.get.overload('java.lang.String').implementation = function (key) {
+        if (key === "ro.debuggable" || key === "ro.secure") {
+            console.log("[*] Faking property: " + key);
+            return key === "ro.secure" ? "1" : "0";
+        }
+        return this.get(key);
+    };
+
+    // --- 3. Native 계층 (libc.so) 종료 함수 후킹 ---
+    const libc_syms = ["exit", "_exit", "abort", "kill", "raise"];
+    libc_syms.forEach(function (sym) {
+        const addr = Module.findExportByName("libc.so", sym);
+        if (addr) {
+            Interceptor.replace(addr, new NativeCallback(function () {
+                console.log("[!] Native " + sym + "() call blocked!");
+            }, 'void', []));
+        }
+    });
+
+    // --- 4. Native 파일 접근 (fopen, access) 우회 ---
+    const native_file_funcs = ["fopen", "access", "open"];
+    native_file_funcs.forEach(function (sym) {
+        const addr = Module.findExportByName("libc.so", sym);
+        if (addr) {
+            Interceptor.attach(addr, {
+                onEnter: function (args) {
+                    const path = args[0].readUtf8String();
+                    for (let item of RootItems) {
+                        if (path && path.indexOf(item) > -1) {
+                            console.log("[*] Native hiding file: " + path);
+                            // 파일을 찾지 못한 것으로 속이기 위해 경로를 존재하지 않는 곳으로 조작
+                            this.pathMod = true;
+                            args[0].writeUtf8String("/non_existent_path_frida");
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    console.log("[+] All hooks applied. Monitoring...");
 });
