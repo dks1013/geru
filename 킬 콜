@@ -1,6 +1,12 @@
-const killPtr = Module.findExportByName(null, 'kill');
-Interceptor.attach(killPtr, {
-    onEnter: function(args) {
-        console.log('kill called from:\n' + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join('\n'));
+const symbols = ['exit', '_exit', 'abort', 'kill', 'pthread_exit'];
+symbols.forEach(name => {
+    const ptr = Module.findExportByName('libc.so', name);
+    if (ptr) {
+        Interceptor.attach(ptr, {
+            onEnter: function(args) {
+                console.log(`[!] Target called: ${name}`);
+                console.log(Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join('\n'));
+            }
+        });
     }
 });
