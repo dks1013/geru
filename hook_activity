@@ -1,0 +1,41 @@
+setImmediate(function() {
+    Java.perform(function() {
+        var Activity = Java.use("android.app.Activity");
+
+        // 1. 액티비티 생성 시점 추적
+        Activity.onCreate.overload('android.os.Bundle').implementation = function(savedInstanceState) {
+            console.log("[+] Activity Created (onCreate): " + this.getClass().getName());
+            this.onCreate(savedInstanceState);
+        };
+
+        // 2. 액티비티가 화면에 표시되는 시점 추적
+        Activity.onStart.implementation = function() {
+            console.log("[▶] Activity Started (onStart): " + this.getClass().getName());
+            this.onStart();
+        };
+
+        // 3. 액티비티가 포그라운드로 올라오는 시점 추적
+        Activity.onResume.implementation = function() {
+            console.log("[★] Activity Resumed (onResume): " + this.getClass().getName());
+            this.onResume();
+        };
+
+        // 4. 액티비티가 백그라운드로 내려가는 시점 추적
+        Activity.onPause.implementation = function() {
+            console.log("[◀] Activity Paused (onPause): " + this.getClass().getName());
+            this.onPause();
+        };
+
+        // 5. 액티비티가 완전히 보이지 않게 되는 시점 추적
+        Activity.onStop.implementation = function() {
+            console.log("[-] Activity Stopped (onStop): " + this.getClass().getName());
+            this.onStop();
+        };
+
+        // 6. 액티비티가 파괴되는 시점 추적
+        Activity.onDestroy.implementation = function() {
+            console.log("[X] Activity Destroyed (onDestroy): " + this.getClass().getName());
+            this.onDestroy();
+        };
+    });
+});
