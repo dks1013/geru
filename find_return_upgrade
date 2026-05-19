@@ -1,0 +1,145 @@
+setImmediate(function(){
+Java.perform(function(){
+
+    var ThreadDef = Java.use('java.lang.Thread');
+    var ThreadObj = ThreadDef.$new();
+    function stackTrace() {
+        var stack = ThreadObj.currentThread().getStackTrace();
+        for (var i = 0; i < stack.length; i++) {
+            console.log(i + " => " + stack[i].toString());
+        }
+        console.log("-------------------------------------");
+    }
+    var logContentArray = new Array();
+    
+    function uniqBy(array, key) {
+        var seen = {};
+        return array.filter(function(item) {
+            var k = key(item);
+            return seen.hasOwnProperty(k) ? false : (seen[k] = true);
+        });
+    }
+
+    // [핵심] 기존 traceClass를 안전하게 바꾼 함수
+    function traceClass(targetClass) {
+        try {
+            var hook = Java.use(targetClass);
+            var methods = hook.class.getDeclaredMethods();
+            hook.$dispose;
+
+            var parsedMethods = [];
+            methods.forEach(function(method) {
+                parsedMethods.push(method.toString().replace(targetClass + ".", "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
+            });
+
+            var targets = uniqBy(parsedMethods, JSON.stringify);
+            targets.forEach(function(targetMethod) {
+                traceMethod(targetClass + "." + targetMethod);
+            });
+            console.log("[★] Successfully hooked all methods in " + targetClass);
+        } catch (e) {
+            // 즉시 로드에 실패하면 에러를 뱉지 않고 조용히 넘어갑니다 (동적 로더가 잡을 것이기 때문)
+        }
+    }
+
+    function traceMethod(targetClassMethod) {
+        var delim = targetClassMethod.lastIndexOf(".");
+        if (delim === -1) return;
+
+        var targetClass = targetClassMethod.slice(0, delim);
+        var targetMethod = targetClassMethod.slice(delim + 1, targetClassMethod.length);
+        var hook = Java.use(targetClass);
+        var overloadCount = hook[targetMethod].overloads.length;
+        
+        for (var i = 0; i < overloadCount; i++) {
+            hook[targetMethod].overloads[i].implementation = function() {
+                var logContent_1 = "entered--" + targetClassMethod;
+                var prefixStr = gainLogPrefix(logContentArray);
+                logContentArray.push(prefixStr + logContent_1);
+                console.log(prefixStr + logContent_1);
+
+                for (var j = 0; j < arguments.length; j++) {
+                    console.log(prefixStr + "arg[" + j + "]: " + arguments[j]);
+                }
+
+                var retval = this[targetMethod].apply(this, arguments);
+                console.log(prefixStr + "retval: " + retval);
+                console.log(prefixStr + "exiting--" + targetClassMethod);
+                return retval;
+            };
+        }
+    }
+
+    function gainLogPrefix(theArray) {
+        var lastIndex = theArray.length - 1;
+        for (var i = lastIndex; i >= 0; i--) {
+            var tmpLogContent = theArray[i];
+            var cIndex = tmpLogContent.indexOf("entered--");
+            if (cIndex == -1) {
+                var cIndex2 = tmpLogContent.indexOf("exiting--");
+                if (cIndex2 == -1) {
+                    continue;
+                } else {
+                    return tmpLogContent.slice(0, cIndex2);
+                }
+            } else {
+                return tmpLogContent.slice(0, cIndex);
+            }
+        }
+        return "";
+    }
+
+    // [핵심 로직] 클래스가 동적으로 로드되는 타이밍을 낚아챕니다.
+    function hookDynamicClass(targetClassName) {
+        // 1. 스크립트 실행 시점에 이미 로드되어 있는지 먼저 찔러봅니다.
+        traceClass(targetClassName);
+
+        // 2. 만약 없다면, 자바의 Class.forName(클래스를 메모리에 올리는 함수)을 후킹하여 대기합니다.
+        var ClassDef = Java.use('java.lang.Class');
+        
+        // 오버로딩 1: Class.forName(String)
+        ClassDef.forName.overload('java.lang.String').implementation = function(className) {
+            var res = this.forName(className);
+            if (className === targetClassName) {
+                console.log("[+] Target class dynamically loaded via forName(1): " + className);
+                traceClass(targetClassName);
+            }
+            return res;
+        };
+
+        // 오버로딩 2: Class.forName(String, boolean, ClassLoader)
+        ClassDef.forName.overload('java.lang.String', 'boolean', 'java.lang.ClassLoader').implementation = function(className, initialize, classLoader) {
+            var res = this.forName(className, initialize, classLoader);
+            if (className === targetClassName) {
+                console.log("[+] Target class dynamically loaded via forName(2): " + className);
+                traceClass(targetClassName);
+            }
+            return res;
+        };
+
+        // 3. 안드로이드 액티비티 생명주기 자체를 감시하여, 해당 액티비티가 onCreate 될 때 강제로 후킹을 꽂습니다.
+        var ActivityDef = Java.use('android.app.Activity');
+        ActivityDef.onCreate.overload('android.os.Bundle').implementation = function(savedInstanceState) {
+            var currentActivityName = this.getClass().getName();
+            
+            // 우리가 찾는 액티비티가 실행되는 순간!
+            if (currentActivityName === targetClassName) {
+                console.log("[+] Target Activity is initializing (onCreate): " + currentActivityName);
+                traceClass(targetClassName);
+            }
+            this.onCreate(savedInstanceState);
+        };
+    }
+
+    // 실행구문 (여기에 분석을 원하시는 일시적 액티비티의 전체 패키지 경로를 입력하세요)
+    setTimeout(function() {
+        Java.perform(function() {
+            var targetActivity = "com.example.app.TemporaryActivity"; // <--- 여기에 액티비티 경로 입력
+            
+            console.log("[*] Searching & Waiting for: " + targetActivity);
+            hookDynamicClass(targetActivity);
+        });
+    }, 0);
+
+});
+});
