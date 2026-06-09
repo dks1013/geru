@@ -1,4 +1,4 @@
-// frida_final_hong.js
+// frida_final_hong_fixed.js
 
 const sendAddr = Module.findExportByName("ws2_32.dll", "send");
 const wsaSendAddr = Module.findExportByName("ws2_32.dll", "WSASend");
@@ -6,18 +6,15 @@ const wsaSendAddr = Module.findExportByName("ws2_32.dll", "WSASend");
 // 안병휘와 홍길동이 메모리에 가질 수 있는 모든 인코딩 변종 세트
 const fullNameVariants = [
     {
-        // 1. 표준 UTF-8 (가장 가능성 높음)
+        // 1. 표준 UTF-8
         target: [0xec, 0x95, 0x88, 0xeb, 0xb3, 0x91, 0xed, 0x9a, 0x98], // 안병휘
         replace: [0xed, 0x99, 0x8d, 0xea, 0xb8, 0xb8, 0xeb, 0x8f, 0x99], // 홍길동
         label: "표준 UTF-8"
     },
     {
-        // 2. 윈도우 완성형 CP949 / EUC-KR
-        target: [0xbe, 0xc1, 0xba, 0xb2, 0xeb, 0xdf], // 안병휘
-        replace: [0xc9, 0xab, 0xb1, 0xeAnchor, 0xb5, 0xbf], // 홍길동 (참고: b1,e1,b5,bf 구조 순)
-        // 안전한 매칭을 위해 실제 바이너리 값을 정밀 대입합니다.
-        rawTarget: [190, 193, 186, 178, 235, 223], 
-        rawReplace: [201, 171, 177, 225, 181, 191],
+        // 2. 윈도우 완성형 CP949 / EUC-KR (오류 수정 완료)
+        target: [190, 193, 186, 178, 235, 223], // 안병휘 (10진수 바이트 배열)
+        replace: [201, 171, 177, 225, 181, 191], // 홍길동 (10진수 바이트 배열)
         label: "윈도우 CP949 (EUC-KR)"
     },
     {
@@ -27,15 +24,14 @@ const fullNameVariants = [
         label: "Windows 원시 유니코드 (UTF-16 LE)"
     },
     {
-        // 4. 맥북 혼용 자모 분리형(NFD)의 특수 결합 형태 (혹시 모를 예외 방지)
-        // 기존 코드에서 '안병'만 부분 통과했던 현상까지 싹 다 잡기 위해 단어 조합 스캔
-        target: [0xec, 0x95, 0x88, 0xeb, 0xb3, 0x91], // 우선 '안병'을 포착하고
-        replace: [0xed, 0x99, 0x8d, 0xea, 0xb8, 0xb8], // '홍길'로 교체
+        // 4. 파편화 및 부분 변조 대응형 ('안병'만 먼저 전송되는 경우)
+        target: [0xec, 0x95, 0x88, 0xeb, 0xb3, 0x91], // 안병
+        replace: [0xed, 0x99, 0x8d, 0xea, 0xb8, 0xb8], // 홍길
         label: "UTF-8 부분 파편화 대응형"
     }
 ];
 
-// 특수 조합형 '휘' -> '동' 개별 보정 세트 (이전 단계 백업용)
+// 특수 조합형 '휘' -> '동' 개별 보정 세트
 const hwiTarget = [0xed, 0x9a, 0x98];
 const hwiReplace = [0xeb, 0x8f, 0x99];
 
@@ -53,9 +49,8 @@ function executeMainHacker(buffer, length) {
     // 단계 1: 전체 이름 세트 동시 스캔 및 통짜 교체
     for (let v = 0; v < fullNameVariants.length; v++) {
         const variant = fullNameVariants[v];
-        // CP949 특수 배열인 경우 raw 배열 사용, 아니면 일반 target 사용
-        const tArr = variant.rawTarget ? variant.rawTarget : variant.target;
-        const rArr = variant.rawReplace ? variant.rawReplace : variant.replace;
+        const tArr = variant.target;
+        const rArr = variant.replace;
         const tLen = tArr.length;
 
         if (length < tLen) continue;
