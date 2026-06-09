@@ -1,73 +1,99 @@
-// frida_perfect_sender.js
+// frida_ultra_patcher.js
 
 const sendAddr = Module.findExportByName("ws2_32.dll", "send");
+const wsaSendAddr = Module.findExportByName("ws2_32.dll", "WSASend");
 
+// '안', '병', '휘' 각각의 UTF-8 바이트 정의
+const byte_AN   = [0xec, 0x95, 0x88];
+const byte_BYUNG = [0xeb, 0xb3, 0x91];
+const byte_HWI   = [0xed, 0x9a, 0x98];
+
+// 교체할 '홍', '길', '동' UTF-8 바이트 정의
+const byte_HONG = [0xed, 0x99, 0x8d];
+const byte_GIL  = [0xea, 0xb8, 0xb8];
+const byte_DONG = [0xeb, 0x8f, 0x99];
+
+// 낱개 바이트 배열을 버퍼에서 찾아 교체하는 핵심 함수
+function patchRawBuffer(buffer, length) {
+    if (length < 3) return;
+    let isPatched = false;
+
+    // 안전하게 메모리 쓰기 권한 부여
+    try {
+        Memory.protect(buffer, length, 'rwx');
+    } catch(e) {
+        return;
+    }
+
+    for (let i = 0; i <= length - 3; i++) {
+        let b0 = buffer.add(i).readU8();
+        let b1 = buffer.add(i+1).readU8();
+        let b2 = buffer.add(i+2).readU8();
+
+        // 1. '안' 탐지 -> '홍' 교체
+        if (b0 === byte_AN[0] && b1 === byte_AN[1] && b2 === byte_AN[2]) {
+            buffer.add(i).writeByteArray(byte_HONG);
+            console.log(`[!] [바이트 패치] 오프셋 ${i}에서 '안' -> '홍' 교체 완료`);
+            isPatched = true;
+            i += 2; 
+            continue;
+        }
+        // 2. '병' 탐지 -> '길' 교체
+        if (b0 === byte_BYUNG[0] && b1 === byte_BYUNG[1] && b2 === byte_BYUNG[2]) {
+            buffer.add(i).writeByteArray(byte_GIL);
+            console.log(`[!] [바이트 패치] 오프셋 ${i}에서 '병' -> '길' 교체 완료`);
+            isPatched = true;
+            i += 2;
+            continue;
+        }
+        // 3. '휘' 탐지 -> '동' 교체
+        if (b0 === byte_HWI[0] && b1 === byte_HWI[1] && b2 === byte_HWI[2]) {
+            buffer.add(i).writeByteArray(byte_DONG);
+            console.log(`[!] [바이트 패치] 오프셋 ${i}에서 '휘' -> '동' 교체 완료`);
+            isPatched = true;
+            i += 2;
+            continue;
+        }
+    }
+    if (isPatched) {
+        console.log(`[*] 데이터 무결성 검증 통과용 로우레벨 패치 적용 후 송신 처리\n`);
+    }
+}
+
+// ---- 1. 표준 send 함수 후킹 ----
 if (sendAddr) {
     Interceptor.attach(sendAddr, {
         onEnter: function (args) {
-            this.buf = args[1];
-            this.len = args[2].toInt32();
+            const buffer = args[1];
+            const length = args[2].toInt32();
+            if (length > 0) {
+                patchRawBuffer(buffer, length);
+            }
+        }
+    });
+    console.log("[+] ws2_32.dll!send 후킹 완료");
+}
 
-            if (this.len > 4) {
-                try {
-                    // 1. 현재 전송 중인 버퍼의 문자열 추출 시도
-                    const rawBytes = this.buf.readByteArray(this.len);
-                    const uint8 = new Uint8Array(rawBytes);
-                    
-                    let dataStr = "";
-                    for (let i = 0; i < uint8.length; i++) {
-                        // 출력 가능한 아스키 영역 및 한글 깨짐을 감안하여 유니코드로 변환
-                        dataStr += String.fromCharCode(uint8[i]);
-                    }
+// ---- 2. 확장 WSASend 함수 후킹 (비동기 소켓 대응) ----
+if (wsaSendAddr) {
+    Interceptor.attach(wsaSendAddr, {
+        onEnter: function (args) {
+            // WSASend는 LPWSABUF 구조체 배열을 사용해 데이터를 전달합니다.
+            // args[1]이 WSABUF 구조체의 포인터이며, 내부 첫 4바이트가 크기, 다음 4/8바이트가 버퍼 주소입니다.
+            const lpBuffers = args[1];
+            const dwBufferCount = args[2].toInt32();
 
-                    // 2. 버퍼 내에 '안병휘'를 나타내는 UTF-8 바이트 패턴이 존재하는지 파싱
-                    // 안병휘 UTF-8: \xec\x95\x88\xeb\xb3\x91\xed\x9a\x98
-                    const targetStr = "\xec\x95\x88\xeb\xb3\x91\xed\x9a\x98";
-                    const replaceStr = "\xed\x99\x8d\xea,b8\xb8\xeb\x8f\x99"; // 홍길동
+            for (let i = 0; i < dwBufferCount; i++) {
+                // 32비트/64비트 호환을 위해 Process.pointerSize 적용
+                const wsaBufElement = lpBuffers.add(i * (Process.pointerSize * 2));
+                const len = wsaBufElement.readU32(); // 버퍼 크기
+                const buf = wsaBufElement.add(Process.pointerSize).readPointer(); // 실제 버퍼 주소
 
-                    if (dataStr.includes('request') && (dataStr.includes('안병휘') || dataStr.includes(targetStr))) {
-                        console.log("\n[+] [발신 통제] 변조 대상 패킷을 완전히 포착했습니다.");
-
-                        // 3. 실제 제어문 영역(JSON 시작점 '{' 이후)을 추출하여 오브젝트화
-                        const jsonStart = dataStr.indexOf('{');
-                        if (jsonStart !== -1) {
-                            const validJsonPart = dataStr.substring(jsonStart);
-                            let payload = JSON.parse(validJsonPart);
-
-                            // 강력하게 이름을 강제 치환
-                            payload["name"] = "홍길동";
-
-                            // 4. 조작된 데이터로 JSON 다시 빌드
-                            const hackedJsonStr = JSON.stringify(payload);
-                            const encoder = new TextEncoder();
-                            const hackedJsonBytes = encoder.encode(hackedJsonStr);
-                            const newJsonLen = hackedJsonBytes.length;
-
-                            // 5. 프로토콜 양식에 맞춰 [4바이트 BE 길이] + [새 JSON] 형태로 완전히 새로 조립
-                            const finalPack = Memory.alloc(4 + newJsonLen);
-                            const packView = new DataView(newHeader.buffer);
-                            
-                            // 길이 헤더 갱신
-                            const newHeader = new Uint8Array(4);
-                            const headerView = new DataView(newHeader.buffer);
-                            headerView.setUint32(0, newJsonLen, false); // Big Endian
-
-                            finalPack.writeByteArray(newHeader.buffer);
-                            finalPack.add(4).writeByteArray(hackedJsonBytes);
-
-                            // 6. 소켓 API 인자 값을 신규 패킷 정보로 전면 교체
-                            args[1] = finalPack;
-                            args[2] = ptr(4 + newJsonLen);
-
-                            console.log("[*] [성공] 패킷 길이 및 인코딩 데이터를 '홍길동' 기준으로 완벽히 재구축하여 전송했습니다.");
-                            console.log("-> 보낸 데이터: " + hackedJsonStr);
-                        }
-                    }
-                } catch (err) {
-                    // 데이터 파싱 예외 발생 시 전송 흐름을 끊지 않기 위해 통과
+                if (!buf.isNull() && len > 0) {
+                    patchRawBuffer(buf, len);
                 }
             }
         }
     });
-    console.log("[*] 완벽한 무결성 재계산 후킹 엔진 가동 중...");
+    console.log("[+] ws2_32.dll!WSASend 후킹 완료");
 }
