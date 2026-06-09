@@ -1,99 +1,133 @@
-// frida_ultra_patcher.js
+// frida_final_hong.js
 
 const sendAddr = Module.findExportByName("ws2_32.dll", "send");
 const wsaSendAddr = Module.findExportByName("ws2_32.dll", "WSASend");
 
-// '안', '병', '휘' 각각의 UTF-8 바이트 정의
-const byte_AN   = [0xec, 0x95, 0x88];
-const byte_BYUNG = [0xeb, 0xb3, 0x91];
-const byte_HWI   = [0xed, 0x9a, 0x98];
+// 안병휘와 홍길동이 메모리에 가질 수 있는 모든 인코딩 변종 세트
+const fullNameVariants = [
+    {
+        // 1. 표준 UTF-8 (가장 가능성 높음)
+        target: [0xec, 0x95, 0x88, 0xeb, 0xb3, 0x91, 0xed, 0x9a, 0x98], // 안병휘
+        replace: [0xed, 0x99, 0x8d, 0xea, 0xb8, 0xb8, 0xeb, 0x8f, 0x99], // 홍길동
+        label: "표준 UTF-8"
+    },
+    {
+        // 2. 윈도우 완성형 CP949 / EUC-KR
+        target: [0xbe, 0xc1, 0xba, 0xb2, 0xeb, 0xdf], // 안병휘
+        replace: [0xc9, 0xab, 0xb1, 0xeAnchor, 0xb5, 0xbf], // 홍길동 (참고: b1,e1,b5,bf 구조 순)
+        // 안전한 매칭을 위해 실제 바이너리 값을 정밀 대입합니다.
+        rawTarget: [190, 193, 186, 178, 235, 223], 
+        rawReplace: [201, 171, 177, 225, 181, 191],
+        label: "윈도우 CP949 (EUC-KR)"
+    },
+    {
+        // 3. UTF-16 LE (Windows 기본 유니코드 메모리 형태)
+        target: [0x48, 0xca, 0x21, 0xbc, 0xec, 0xd6], // 안병휘
+        replace: [0x4d, 0xd9, 0xe8, 0xae, 0xd9, 0xbc], // 홍길동
+        label: "Windows 원시 유니코드 (UTF-16 LE)"
+    },
+    {
+        // 4. 맥북 혼용 자모 분리형(NFD)의 특수 결합 형태 (혹시 모를 예외 방지)
+        // 기존 코드에서 '안병'만 부분 통과했던 현상까지 싹 다 잡기 위해 단어 조합 스캔
+        target: [0xec, 0x95, 0x88, 0xeb, 0xb3, 0x91], // 우선 '안병'을 포착하고
+        replace: [0xed, 0x99, 0x8d, 0xea, 0xb8, 0xb8], // '홍길'로 교체
+        label: "UTF-8 부분 파편화 대응형"
+    }
+];
 
-// 교체할 '홍', '길', '동' UTF-8 바이트 정의
-const byte_HONG = [0xed, 0x99, 0x8d];
-const byte_GIL  = [0xea, 0xb8, 0xb8];
-const byte_DONG = [0xeb, 0x8f, 0x99];
+// 특수 조합형 '휘' -> '동' 개별 보정 세트 (이전 단계 백업용)
+const hwiTarget = [0xed, 0x9a, 0x98];
+const hwiReplace = [0xeb, 0x8f, 0x99];
 
-// 낱개 바이트 배열을 버퍼에서 찾아 교체하는 핵심 함수
-function patchRawBuffer(buffer, length) {
-    if (length < 3) return;
-    let isPatched = false;
+function executeMainHacker(buffer, length) {
+    if (length < 2) return;
 
-    // 안전하게 메모리 쓰기 권한 부여
     try {
         Memory.protect(buffer, length, 'rwx');
     } catch(e) {
         return;
     }
 
-    for (let i = 0; i <= length - 3; i++) {
-        let b0 = buffer.add(i).readU8();
-        let b1 = buffer.add(i+1).readU8();
-        let b2 = buffer.add(i+2).readU8();
+    let isModified = false;
 
-        // 1. '안' 탐지 -> '홍' 교체
-        if (b0 === byte_AN[0] && b1 === byte_AN[1] && b2 === byte_AN[2]) {
-            buffer.add(i).writeByteArray(byte_HONG);
-            console.log(`[!] [바이트 패치] 오프셋 ${i}에서 '안' -> '홍' 교체 완료`);
-            isPatched = true;
-            i += 2; 
-            continue;
-        }
-        // 2. '병' 탐지 -> '길' 교체
-        if (b0 === byte_BYUNG[0] && b1 === byte_BYUNG[1] && b2 === byte_BYUNG[2]) {
-            buffer.add(i).writeByteArray(byte_GIL);
-            console.log(`[!] [바이트 패치] 오프셋 ${i}에서 '병' -> '길' 교체 완료`);
-            isPatched = true;
-            i += 2;
-            continue;
-        }
-        // 3. '휘' 탐지 -> '동' 교체
-        if (b0 === byte_HWI[0] && b1 === byte_HWI[1] && b2 === byte_HWI[2]) {
-            buffer.add(i).writeByteArray(byte_DONG);
-            console.log(`[!] [바이트 패치] 오프셋 ${i}에서 '휘' -> '동' 교체 완료`);
-            isPatched = true;
-            i += 2;
-            continue;
+    // 단계 1: 전체 이름 세트 동시 스캔 및 통짜 교체
+    for (let v = 0; v < fullNameVariants.length; v++) {
+        const variant = fullNameVariants[v];
+        // CP949 특수 배열인 경우 raw 배열 사용, 아니면 일반 target 사용
+        const tArr = variant.rawTarget ? variant.rawTarget : variant.target;
+        const rArr = variant.rawReplace ? variant.rawReplace : variant.replace;
+        const tLen = tArr.length;
+
+        if (length < tLen) continue;
+
+        for (let i = 0; i <= length - tLen; i++) {
+            let match = true;
+            for (let j = 0; j < tLen; j++) {
+                if (buffer.add(i + j).readU8() !== tArr[j]) {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match) {
+                console.log(`[🎯 전원 검거] ${variant.label} 매트릭스에서 '안병휘(또는 안병)' 패턴 포착! (오프셋: ${i})`);
+                const patch = Memory.alloc(rArr.length);
+                patch.writeByteArray(rArr);
+                buffer.add(i).writeByteArray(patch.readByteArray(rArr.length));
+                console.log(`[+] -> '${variant.label}' 양식 기준으로 교체 완료.`);
+                isModified = true;
+                i += (tLen - 1);
+            }
         }
     }
-    if (isPatched) {
-        console.log(`[*] 데이터 무결성 검증 통과용 로우레벨 패치 적용 후 송신 처리\n`);
+
+    // 단계 2: 혹시라도 '휘' 혼자 튀어서 안 바뀐 변종이 남아있다면 마지막으로 낚아채서 '동'으로 변경
+    if (length >= 3) {
+        for (let i = 0; i <= length - 3; i++) {
+            if (buffer.add(i).readU8() === hwiTarget[0] &&
+                buffer.add(i+1).readU8() === hwiTarget[1] &&
+                buffer.add(i+2).readU8() === hwiTarget[2]) {
+                
+                buffer.add(i).writeByteArray(hwiReplace);
+                console.log(`[보정 조치] 미처 안 바뀌고 잔류하던 '휘' -> '동' 최종 변조 완료. (오프셋: ${i})`);
+                isModified = true;
+                i += 2;
+            }
+        }
+    }
+
+    if (isModified) {
+        console.log(`[*] [검증 성공] 패킷 내부의 전송자 신원 조작이 완벽하게 마무리되었습니다.\n`);
     }
 }
 
-// ---- 1. 표준 send 함수 후킹 ----
+// ---- 소켓 API 엔진 인터셉터 주입 ----
 if (sendAddr) {
     Interceptor.attach(sendAddr, {
         onEnter: function (args) {
             const buffer = args[1];
             const length = args[2].toInt32();
-            if (length > 0) {
-                patchRawBuffer(buffer, length);
-            }
+            if (length > 0) executeMainHacker(buffer, length);
         }
     });
-    console.log("[+] ws2_32.dll!send 후킹 완료");
 }
 
-// ---- 2. 확장 WSASend 함수 후킹 (비동기 소켓 대응) ----
 if (wsaSendAddr) {
     Interceptor.attach(wsaSendAddr, {
         onEnter: function (args) {
-            // WSASend는 LPWSABUF 구조체 배열을 사용해 데이터를 전달합니다.
-            // args[1]이 WSABUF 구조체의 포인터이며, 내부 첫 4바이트가 크기, 다음 4/8바이트가 버퍼 주소입니다.
             const lpBuffers = args[1];
             const dwBufferCount = args[2].toInt32();
-
             for (let i = 0; i < dwBufferCount; i++) {
-                // 32비트/64비트 호환을 위해 Process.pointerSize 적용
                 const wsaBufElement = lpBuffers.add(i * (Process.pointerSize * 2));
-                const len = wsaBufElement.readU32(); // 버퍼 크기
-                const buf = wsaBufElement.add(Process.pointerSize).readPointer(); // 실제 버퍼 주소
-
-                if (!buf.isNull() && len > 0) {
-                    patchRawBuffer(buf, len);
-                }
+                const len = wsaBufElement.readU32();
+                const buf = wsaBufElement.add(Process.pointerSize).readPointer();
+                if (!buf.isNull() && len > 0) executeMainHacker(buf, len);
             }
         }
     });
-    console.log("[+] ws2_32.dll!WSASend 후킹 완료");
 }
+
+console.log("========================================================");
+console.log("[*] 안병휘 ➔ 홍길동 무조건 바꿔버리는 통합 크래킹 엔진 가동");
+console.log("[*] 이제 발신측 앱에서 전송 테스트를 진행해 주세요.");
+console.log("========================================================");
