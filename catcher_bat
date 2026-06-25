@@ -1,0 +1,11 @@
+@echo off
+REM 잠금화면 캡처 배치 파일
+
+REM 출력 폴더 생성
+if not exist C:\temp mkdir C:\temp
+
+REM PowerShell로 캡처 실행 (한 줄)
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.Windows.Forms; $b=New-Object System.Drawing.Bitmap([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width,[System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height); $g=[System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Location,[System.Drawing.Point]::Empty,[System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Size); $b.Save('C:\temp\lockscreen_'+(Get-Date -f 'yyyyMMdd_HHmmss')+'.png'); $g.Dispose(); $b.Dispose()"
+
+echo 스크린샷 저장됨: C:\temp\lockscreen_*.png
+pause
