@@ -1,0 +1,9 @@
+# 1. WebClient 서비스 시작 유형 변경 및 즉시 실행
+Set-Service -Name WebClient -StartupType Automatic
+Start-Service WebClient
+
+# 2. HTTP(80포트) 환경에서의 자격 증명 전송 허용 (BasicAuthLevel을 2로 설정)
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters" -Name "BasicAuthLevel" -Value 2
+
+# 3. WebClient 서비스 재시작하여 레지스트리 즉시 반영
+Restart-Service WebClient
