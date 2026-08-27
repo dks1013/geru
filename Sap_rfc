@@ -1,0 +1,40 @@
+import sys
+
+try:
+    from pyrfc import Connection, get_nwrfc_openssl_version
+    print("✅ PyRFC 및 SAP NW RFC SDK 로딩 성공!")
+    print(f"SDK OpenSSL Version: {get_nwrfc_openssl_version()}")
+except Exception as e:
+    print("❌ SDK C-라이브러리 로딩 실패:")
+    print(e)
+    print("\n💡 해결 방법: SAP NW RFC SDK의 lib 폴더 경로가 PATH(또는 LD_LIBRARY_PATH)에 등록되었는지 확인하세요.")
+    sys.exit(1)
+
+# --------------------------------------------------
+# SAP 접속 테스트
+# --------------------------------------------------
+conn_params = {
+    'ashost': 'YOUR_SAP_SERVER_IP',   # SAP Application Server IP/Host
+    'sysnr':  '00',                  # System Number (Instance No)
+    'client': '100',                 # Client 번호
+    'user':   'YOUR_USER_ID',        # SAP ID
+    'passwd': 'YOUR_PASSWORD',       # SAP Password
+    'lang':   'KO'                   # 언어
+}
+
+try:
+    print("\nSAP 서버 연결 시도 중...")
+    conn = Connection(**conn_params)
+    
+    # 기본 통신 테스트 RFC 함수 호출
+    result = conn.call('STFC_CONNECTION', REQUTEXT='Ping from Python')
+    
+    print("✅ SAP RFC 연결 성공!")
+    print("응답 메시지:", result.get('ECHOTEXT'))
+    print("응답 상태:", result.get('RESPTEXT'))
+    
+    conn.close()
+
+except Exception as e:
+    print("❌ SAP 접속/RFC 호출 실패:")
+    print(e)
