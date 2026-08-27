@@ -7,3 +7,7 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parame
 
 # 3. WebClient 서비스 재시작하여 레지스트리 즉시 반영
 Restart-Service WebClient
+
+
+
+New-NetFirewallRule -DisplayName "Responder HTTP Inbound" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
