@@ -65,3 +65,7 @@ netsh interface portproxy add v4tov4 listenport=445 listenaddress=0.0.0.0 connec
 
 
 New-NetFirewallRule -DisplayName "Allow Port 8888" -Direction Inbound -LocalPort 8888 -Protocol TCP -Action Allow
+
+
+pip install https://github.com/SAP/PyRFC/releases/download/v3.0.0/pyrfc-3.0.0-cp312-cp312-win_amd64.whl
+
