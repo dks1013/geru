@@ -1,0 +1,58 @@
+<%= Server.MapPath(".") %>
+' 현재 웹 디렉터리의 실제 물리적 서버 경로
+<%= Server.MapPath("/") %>
+' 웹 사이트 루트(/)의 실제 물리적 서버 경로
+<%= Server.MapPath("..") %>
+' 상위 디렉터리의 실제 물리적 서버 경로
+<%= Request.ServerVariables("LOCAL_ADDR") %>
+' 요청을 받은 웹 서버의 IP 주소
+<%= Request.ServerVariables("REMOTE_ADDR") %>
+' 요청을 보내는 클라이언트(사용자)의 IP 주소
+<%= Request.ServerVariables("SERVER_NAME") %>
+' 웹 서버의 도메인 이름 또는 호스트명
+<%= Request.ServerVariables("SERVER_PORT") %>
+' 웹 서비스가 수신 중인 포트 번호 (80, 443 등)
+<%= Request.ServerVariables("SERVER_SOFTWARE") %>
+' 웹 서버의 소프트웨어 이름 및 버전 (예: Microsoft-IIS/10.0)
+<%= Request.ServerVariables("APPL_PHYSICAL_PATH") %>
+' 현재 IIS 애플리케이션의 물리적 루트 경로
+<%= Request.ServerVariables("APPL_MD_PATH") %>
+' 현재 애플리케이션의 IIS 메타베이스 경로
+<%= Request.ServerVariables("INSTANCE_META_PATH") %>
+' 요청을 처리하는 IIS 인스턴스의 메타베이스 경로
+<%= Request.ServerVariables("PATH_TRANSLATED") %>
+' 가상 경로가 변환된 실제 파일 시스템 경로
+<%= Request.ServerVariables("LOGON_USER") %>
+' Windows 인증을 통해 로그인한 사용자 계정명
+<%= Request.ServerVariables("AUTH_USER") %>
+' 인증에 성공한 사용자 계정명
+<%= Request.ServerVariables("HTTP_USER_AGENT") %>
+' 클라이언트가 전송한 브라우저/OS 정보 (User-Agent)
+<%= Request.ServerVariables("ALL_HTTP") %>
+' 클라이언트가 전송한 모든 HTTP 요청 헤더 목록
+<%= Request.ServerVariables("ALL_RAW") %>
+' 파싱되지 않은 원본 형태의 모든 HTTP 요청 헤더
+<%= CreateObject("WScript.Network").ComputerName %>
+' 서버의 컴퓨터 이름 (호스트명)
+<%= CreateObject("WScript.Network").UserName %>
+' 현재 스크립트를 실행 중인 Windows 계정명
+<%= CreateObject("WScript.Network").UserDomain %>
+' 서버가 속한 Windows 도메인 또는 워크그룹 이름
+<%= CreateObject("WScript.Shell").Environment("System")("COMPUTERNAME") %>
+' 시스템 환경 변수에 설정된 컴퓨터 이름
+<%= CreateObject("WScript.Shell").Environment("System")("OS") %>
+' 서버에 설치된 운영체제 종류
+<%= CreateObject("WScript.Shell").Environment("System")("PROCESSOR_ARCHITECTURE") %>
+' 서버 CPU 아키텍처 (AMD64, x86 등)
+<%= CreateObject("WScript.Shell").Environment("System")("NUMBER_OF_PROCESSORS") %>
+' 서버의 코어/프로세서 개수
+<%= CreateObject("WScript.Shell").Environment("System")("SystemRoot") %>
+' Windows 시스템 디렉터리 경로 (C:\Windows)
+<%= CreateObject("Scripting.FileSystemObject").GetAbsolutePathName(".") %>
+' 현재 디렉터리의 절대 경로 (FSO 기준)
+<%= CreateObject("Scripting.FileSystemObject").GetSpecialFolder(0) %>
+' Windows 시스템 기본 폴더 경로 (WindowsFolder)
+<%= CreateObject("Scripting.FileSystemObject").GetSpecialFolder(1) %>
+' Windows system32 폴더 경로 (SystemFolder)
+<%= CreateObject("Scripting.FileSystemObject").GetSpecialFolder(2) %>
+' 서버의 임시(Temp) 폴더 경로 (TemporaryFolder)
