@@ -1,18 +1,4 @@
-/*
- * VQMS 응답 평문 확인용 Frida 스크립트
- * 기존 vqms_traffic_sniffer.js(Winsock + SChannel 후킹)에
- * 네이티브 암호화 API(CryptoAPI/CNG) 후킹을 추가한 버전.
- *
- * 목적: recv 데이터가 랜덤 바이트처럼 보이는 이유가
- *   (a) TLS(SChannel)가 아니라
- *   (b) SmartFX 자체 대칭키 암호화(FxDefaultAlgorithm 등)일 가능성이 높으므로,
- * .NET의 AesCryptoServiceProvider/RijndaelManaged/DES 등은 결국
- * advapi32.dll(CAPI) 또는 bcrypt.dll(CNG) 네이티브 함수를 호출하게 되어 있음.
- * 그 지점을 가로채면 상위 계층이 뭘 쓰든 평문 버퍼를 그대로 덤프할 수 있음.
- *
- * 사용법: frida -p <PID> -l vqms_crypto_sniffer.js
- *        또는 frida -f SKhynix.SmartQMS.Launcher.VQMS.Real.exe -l vqms_crypto_sniffer.js
- */
+
 
 function log(tag, msg) {
     console.log("[" + new Date().toISOString().substr(11, 12) + "] [" + tag + "] " + msg);
