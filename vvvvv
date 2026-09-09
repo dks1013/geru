@@ -1,0 +1,200 @@
+/*
+ * VQMS 응답 평문 확인용 Frida 스크립트
+ * 기존 vqms_traffic_sniffer.js(Winsock + SChannel 후킹)에
+ * 네이티브 암호화 API(CryptoAPI/CNG) 후킹을 추가한 버전.
+ *
+ * 목적: recv 데이터가 랜덤 바이트처럼 보이는 이유가
+ *   (a) TLS(SChannel)가 아니라
+ *   (b) SmartFX 자체 대칭키 암호화(FxDefaultAlgorithm 등)일 가능성이 높으므로,
+ * .NET의 AesCryptoServiceProvider/RijndaelManaged/DES 등은 결국
+ * advapi32.dll(CAPI) 또는 bcrypt.dll(CNG) 네이티브 함수를 호출하게 되어 있음.
+ * 그 지점을 가로채면 상위 계층이 뭘 쓰든 평문 버퍼를 그대로 덤프할 수 있음.
+ *
+ * 사용법: frida -p <PID> -l vqms_crypto_sniffer.js
+ *        또는 frida -f SKhynix.SmartQMS.Launcher.VQMS.Real.exe -l vqms_crypto_sniffer.js
+ */
+
+function log(tag, msg) {
+    console.log("[" + new Date().toISOString().substr(11, 12) + "] [" + tag + "] " + msg);
+}
+
+function dump(tag, ptr_, len) {
+    if (!ptr_ || ptr_.isNull() || len <= 0) return;
+    try {
+        console.log(hexdump(ptr_, { length: Math.min(len, 4096), ansi: false }));
+    } catch (e) {
+        log(tag, "dump failed: " + e);
+    }
+}
+
+// ---------- 1) Winsock (기존 로직 유지) ----------
+function hookWinsock() {
+    ["send", "recv"].forEach(function (name) {
+        var addr = Module.findExportByName("ws2_32.dll", name);
+        if (!addr) return;
+        Interceptor.attach(addr, {
+            onEnter: function (args) {
+                this.sock = args[0];
+                this.buf = args[1];
+                this.len = args[2].toInt32();
+                this.isSend = (name === "send");
+            },
+            onLeave: function (retval) {
+                var n = retval.toInt32();
+                if (n <= 0) return;
+                log(name, "socket=" + this.sock + " len=" + n);
+                dump(name, this.buf, n);
+            }
+        });
+    });
+
+    ["WSASend", "WSARecv"].forEach(function (name) {
+        var addr = Module.findExportByName("ws2_32.dll", name);
+        if (!addr) return;
+        Interceptor.attach(addr, {
+            onEnter: function (args) {
+                this.sock = args[0];
+                this.lpBuffers = args[1];
+                this.dwBufferCount = args[2].toInt32();
+                this.isSend = (name === "WSASend");
+            },
+            onLeave: function (retval) {
+                if (retval.toInt32() !== 0) return; // 0 == success
+                // WSABUF array: { u_long len; char* buf; } per entry
+                for (var i = 0; i < this.dwBufferCount; i++) {
+                    var entry = this.lpBuffers.add(i * (Process.pointerSize === 8 ? 16 : 8));
+                    var bufLen = entry.readU32();
+                    var bufPtr = entry.add(Process.pointerSize === 8 ? 8 : 4).readPointer();
+                    log(name, "socket=" + this.sock + " len=" + bufLen);
+                    dump(name, bufPtr, bufLen);
+                }
+            }
+        });
+    });
+}
+
+// ---------- 2) SChannel TLS (기존 로직 유지, 참고용) ----------
+function hookSChannel() {
+    var encMsg = Module.findExportByName("secur32.dll", "EncryptMessage");
+    var decMsg = Module.findExportByName("secur32.dll", "DecryptMessage");
+
+    if (decMsg) {
+        Interceptor.attach(decMsg, {
+            onEnter: function (args) {
+                this.pMessage = args[1]; // PSecBufferDesc
+            },
+            onLeave: function (retval) {
+                if (retval.toInt32() !== 0) return; // SEC_E_OK
+                // pMessage->cBuffers / pBuffers 구조 파싱은 환경별로 조정 필요
+                log("SChannel-Decrypt", "DecryptMessage returned OK, inspect pMessage=" + this.pMessage);
+            }
+        });
+    }
+    if (encMsg) {
+        Interceptor.attach(encMsg, {
+            onEnter: function (args) {
+                log("SChannel-Encrypt", "EncryptMessage called, pMessage=" + args[1]);
+            }
+        });
+    }
+}
+
+// ---------- 3) CryptoAPI (CAPI, advapi32.dll) ----------
+// .NET의 예전 RijndaelManaged/DESCryptoServiceProvider 등이 여기로 내려올 수 있음
+function hookCapi() {
+    var cryptEncrypt = Module.findExportByName("advapi32.dll", "CryptEncrypt");
+    var cryptDecrypt = Module.findExportByName("advapi32.dll", "CryptDecrypt");
+
+    if (cryptDecrypt) {
+        Interceptor.attach(cryptDecrypt, {
+            // BOOL CryptDecrypt(HCRYPTKEY hKey, HCRYPTHASH hHash, BOOL Final,
+            //                   DWORD dwFlags, BYTE *pbData, DWORD *pdwDataLen)
+            onEnter: function (args) {
+                this.pbData = args[4];
+                this.pdwDataLen = args[5];
+            },
+            onLeave: function (retval) {
+                if (retval.toInt32() === 0) return;
+                var len = this.pdwDataLen.readU32();
+                log("CryptDecrypt", "PLAINTEXT len=" + len);
+                dump("CryptDecrypt", this.pbData, len);
+            }
+        });
+    }
+    if (cryptEncrypt) {
+        Interceptor.attach(cryptEncrypt, {
+            onEnter: function (args) {
+                var pbData = args[4];
+                var pdwDataLen = args[5];
+                var len = pdwDataLen.readU32();
+                log("CryptEncrypt", "PLAINTEXT(before enc) len=" + len);
+                dump("CryptEncrypt", pbData, len);
+            }
+        });
+    }
+}
+
+// ---------- 4) CNG (bcrypt.dll) ----------
+// .NET 4.x의 AesCryptoServiceProvider/Aes.Create() 계열이 여기로 내려오는 경우가 많음
+function hookCng() {
+    var bcryptDecrypt = Module.findExportByName("bcrypt.dll", "BCryptDecrypt");
+    var bcryptEncrypt = Module.findExportByName("bcrypt.dll", "BCryptEncrypt");
+
+    if (bcryptDecrypt) {
+        Interceptor.attach(bcryptDecrypt, {
+            // NTSTATUS BCryptDecrypt(hKey, pbInput, cbInput, pPaddingInfo, pbIV, cbIV,
+            //                        pbOutput, cbOutput, pcbResult, dwFlags)
+            onEnter: function (args) {
+                this.pbOutput = args[6];
+                this.pcbResult = args[8];
+            },
+            onLeave: function (retval) {
+                if (!retval.equals(0)) return; // STATUS_SUCCESS == 0
+                if (this.pcbResult.isNull()) return;
+                var len = this.pcbResult.readU32();
+                if (len === 0 || this.pbOutput.isNull()) return;
+                log("BCryptDecrypt", "PLAINTEXT len=" + len);
+                dump("BCryptDecrypt", this.pbOutput, len);
+            }
+        });
+    }
+    if (bcryptEncrypt) {
+        Interceptor.attach(bcryptEncrypt, {
+            onEnter: function (args) {
+                var pbInput = args[1];
+                var cbInput = args[2].toInt32();
+                if (cbInput <= 0 || pbInput.isNull()) return;
+                log("BCryptEncrypt", "PLAINTEXT(before enc) len=" + cbInput);
+                dump("BCryptEncrypt", pbInput, cbInput);
+            }
+        });
+    }
+}
+
+// ---------- 5) 압축 가능성 대비: ntdll RtlDecompressBuffer ----------
+function hookCompression() {
+    var addr = Module.findExportByName("ntdll.dll", "RtlDecompressBuffer");
+    if (!addr) return;
+    Interceptor.attach(addr, {
+        onEnter: function (args) {
+            this.uncompressedBuf = args[2];
+            this.uncompressedBufSize = args[3].toInt32();
+            this.finalSizePtr = args[6];
+        },
+        onLeave: function (retval) {
+            if (retval.toInt32() !== 0) return; // STATUS_SUCCESS
+            var finalSize = this.finalSizePtr.readU32();
+            log("RtlDecompressBuffer", "DECOMPRESSED len=" + finalSize);
+            dump("RtlDecompressBuffer", this.uncompressedBuf, finalSize);
+        }
+    });
+}
+
+console.log("[*] VQMS crypto sniffer 로딩 중...");
+hookWinsock();
+hookSChannel();
+hookCapi();
+hookCng();
+hookCompression();
+console.log("[*] 후킹 완료: Winsock(send/recv/WSASend/WSARecv) + SChannel + CryptoAPI(advapi32) + CNG(bcrypt) + RtlDecompressBuffer");
+console.log("[*] 네트워크 동작을 트리거하고, 어느 태그(CryptDecrypt/BCryptDecrypt/RtlDecompressBuffer)에서 평문이 나오는지 확인하세요.");
