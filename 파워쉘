@@ -1,0 +1,4 @@
+cd C:\Users\dks10\work\sss
+"C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe" /platform:x86 /target:winexe /r:"AxInterop.DEXT5Lib.DLL" /r:"Interop.DEXT5Lib.DLL" /r:System.Windows.Forms.dll /r:System.dll /r:System.Drawing.dll /out:Dext5UploadPoC.exe Dext5UploadPoC.cs
+
+.\Dext5UploadPoC.exe
