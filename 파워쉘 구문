@@ -18,3 +18,15 @@ print Scanner(Runtime.getRuntime().exec("powershell -Command Write-Output PS_OK"
 
 from java.lang import Runtime; from java.util import Scanner
 print Scanner(Runtime.getRuntime().exec("powershell -Command $PSVersionTable.PSVersion").getInputStream()).useDelimiter("\\A").next()
+
+
+from java.io import BufferedReader, FileReader
+try:
+    reader = BufferedReader(FileReader("C:\\Path\\to\\file.vm"))
+    line = reader.readLine()
+    while line != None:
+        print line
+        line = reader.readLine()
+    reader.close()
+except Exception, e:
+    print e
