@@ -35,4 +35,36 @@ except Exception, e:
 
 
 
+import java.sql.DriverManager as DriverManager
+
+# MS SQL 연결 정보 설정 (포트 기본값: 1433)
+db_url = "jdbc:sqlserver://localhost:1433;databaseName=confluence"  
+db_user = "confluenceuser"
+db_pass = "password"
+
+conn = None
+stmt = None
+rs = None
+
+try:
+    # MS SQL JDBC 드라이버 명시적 로드
+    import java.lang.Class as Class
+    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+
+    conn = DriverManager.getConnection(db_url, db_user, db_pass)
+    stmt = conn.createStatement()
+    
+    # MS SQL 버전 조회 초경량 쿼리
+    rs = stmt.executeQuery("SELECT @@VERSION")
+    
+    if rs.next():
+        print "[+] MS SQL Database Version:", rs.getString(1)
+
+except Exception, e:
+    print "[-] Connection Failed:", e
+
+finally:
+    if rs: rs.close()
+    if stmt: stmt.close()
+    if conn: conn.close()
 
