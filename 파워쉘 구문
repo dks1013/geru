@@ -12,3 +12,6 @@ print System.getProperty("user.name") + " / " + System.getProperty("os.name")
 
 from java.io import File
 print File("C:/").list()
+
+from java.lang import Runtime; from java.util import Scanner
+print Scanner(Runtime.getRuntime().exec("powershell -Command Write-Output PS_OK").getInputStream()).useDelimiter("\\A").next()
