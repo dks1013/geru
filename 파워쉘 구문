@@ -30,3 +30,36 @@ try:
     reader.close()
 except Exception, e:
     print e
+
+
+
+
+
+
+import java.sql.DriverManager as DriverManager
+
+db_url = "jdbc:postgresql://localhost:5432/confluence"  # 대상 DB URL
+db_user = "confluenceuser"
+db_pass = "password"
+
+conn = None
+stmt = None
+rs = None
+
+try:
+    conn = DriverManager.getConnection(db_url, db_user, db_pass)
+    stmt = conn.createStatement()
+    
+    # DB 부하가 전혀 없는 초경량 테스트 쿼리
+    rs = stmt.executeQuery("SELECT 1")
+    
+    if rs.next():
+        print "[+] DB Connection OK: 연결 성공!"
+
+except Exception, e:
+    print "[-] Connection Failed:", e
+
+finally:
+    if rs: rs.close()
+    if stmt: stmt.close()
+    if conn: conn.close()
