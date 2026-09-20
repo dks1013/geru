@@ -84,3 +84,30 @@ while line is not None:
     print line
     line = reader.readLine()
 reader.close()
+
+
+
+import java.lang.Runtime as Runtime
+import java.io.BufferedReader as BufferedReader
+import java.io.InputStreamReader as InputStreamReader
+
+# PowerShell 전체 경로 지정
+command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -EncodedCommand dwBoAG8AYQBtAGkAIABwAHIAaQB2AA=="
+
+process = Runtime.getRuntime().exec(command)
+
+# 정상 출력과 에러 출력을 모두 확인
+reader = BufferedReader(InputStreamReader(process.getInputStream(), "MS949"))
+errReader = BufferedReader(InputStreamReader(process.getErrorStream(), "MS949"))
+
+line = reader.readLine()
+while line is not None:
+    print line
+    line = reader.readLine()
+reader.close()
+
+errLine = errReader.readLine()
+while errLine is not None:
+    print "ERR: " + errLine
+    errLine = errReader.readLine()
+errReader.close()
