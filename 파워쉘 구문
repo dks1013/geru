@@ -115,5 +115,6 @@ errReader.close()
 
 
 
-powershell -c "$c = New-Object System.Data.SqlClient.SqlConnection('Server=localhost;Database=master;User Id=sa;Password=비밀번호;'); $c.Open(); $cmd = New-Object System.Data.SqlClient.SqlCommand('SELECT @@version', $c); $r = $cmd.ExecuteReader(); while($r.Read()){$r[0]}; $c.Close()"
+$c = New-Object System.Data.SqlClient.SqlConnection('Server=localhost;Database=master;User Id=sa;Password=비밀번호;'); $c.Open(); $cmd = New-Object System.Data.SqlClient.SqlCommand('SELECT @@version', $c); $r = $cmd.ExecuteReader(); while($r.Read()){$r[0]}; $c.Close()
+
 
