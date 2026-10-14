@@ -5,3 +5,6 @@ netsh interface portproxy add v4tov4 listenaddress=39번_IP listenport=8080 conn
 New-NetFirewallRule -DisplayName "Forward to Kali HTTP" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
 
 netsh interface portproxy show all
+
+
+Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -eq 8080}
