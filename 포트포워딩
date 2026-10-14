@@ -1,0 +1,7 @@
+Test-NetConnection 97번_IP -Port 80
+
+netsh interface portproxy add v4tov4 listenaddress=39번_IP listenport=8080 connectaddress=97번_IP connectport=80
+
+New-NetFirewallRule -DisplayName "Forward to Kali HTTP" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
+
+netsh interface portproxy show all
